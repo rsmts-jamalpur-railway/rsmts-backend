@@ -89,21 +89,38 @@ export class AssetsService {
   }
 
   async findAll(query: any) {
-    const { status, location, active = 'true' } = query;
+    const { status, location, active = 'true', page = 1, limit = 50 } = query;
     const is_active = active === 'true';
 
     const where: any = { is_active };
     if (status) where.current_status = status;
     if (location) where.current_location = location;
 
-    return this.prisma.asset.findMany({
-      where,
-      include: {
-        location: { select: { location_id: true } },
-        allocatedTo: { select: { location_id: true } }
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const [data, total] = await Promise.all([
+      this.prisma.asset.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          location: { select: { location_id: true } },
+          allocatedTo: { select: { location_id: true } }
+        },
+        orderBy: { updatedAt: 'desc' }
+      }),
+      this.prisma.asset.count({ where })
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page: Number(page),
+        last_page: Math.ceil(total / take)
+      }
+    };
   }
 
   async findOne(asset_number: string) {

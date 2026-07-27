@@ -24,7 +24,8 @@ export class AssetsController {
   @ApiOperation({ summary: 'Search and list assets' })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'location', required: false })
-  @ApiQuery({ name: 'active', required: false, type: Boolean })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   findAll(@Query() query: any) {
     return this.assetsService.findAll(query);
   }

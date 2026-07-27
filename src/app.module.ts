@@ -4,6 +4,8 @@ import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -62,6 +64,12 @@ import { EventsGateway } from './events/events.gateway';
       inject: [ConfigService],
     }),
 
+    // 4. Rate Limiting
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100, // 100 requests per minute
+    }]),
+
     PrismaModule,
     CoreModule,
     HealthModule,
@@ -82,6 +90,13 @@ import { EventsGateway } from './events/events.gateway';
     ReportsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EventsGateway],
+  providers: [
+    AppService, 
+    EventsGateway,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    }
+  ],
 })
 export class AppModule {}
