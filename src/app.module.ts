@@ -21,6 +21,8 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { StateMachineModule } from './modules/state-machine/state-machine.module';
 import { MovementModule } from './modules/movement/movement.module';
+import { OfflineSyncModule } from './modules/offline-sync/offline-sync.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -73,6 +75,8 @@ import { MovementModule } from './modules/movement/movement.module';
     AssetsModule,
     StateMachineModule,
     MovementModule,
+    OfflineSyncModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
