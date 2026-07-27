@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  id        Int    @id @default(autoincrement())
+  role_name String @unique
+  users     User[]
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  employee_id   String    @unique
+  password_hash String
+  full_name     String
+  department    String?
+  designation   String?
+  role_id       Int
+  role          Role      @relation(fields: [role_id], references: [id])
+  is_active     Boolean   @default(true)
+  last_login    DateTime?
+  created_by    String?   @db.Uuid
+  updated_by    String?   @db.Uuid
+
+  audit_logs    AuditLog[]
+  movement_logs MovementLog[]
+  refresh_token RefreshToken?
+  device        Device?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Location {
+  location_id        String @id
+  max_capacity       Int
+  standard_tat_hours Int
+
+  movements_from   MovementLog[] @relation("FromLocation")
+  movements_to     MovementLog[] @relation("ToLocation")
+  assets_current   Asset[]       @relation("CurrentLocation")
+  assets_allocated Asset[]       @relation("AllocatedShop")
+}
+
+model Asset {
+  id           String @id @default(uuid()) @db.Uuid
+  asset_number String @unique
+  asset_type   String
+  origin       String
+
+  current_location String?
+  location         Location? @relation("CurrentLocation", fields: [current_location], references: [location_id])
+
+  current_status String
+
+  allocated_shop String?
+  allocatedTo    Location? @relation("AllocatedShop", fields: [allocated_shop], references: [location_id])
+
+  is_active Boolean @default(true)
+
+  movement_logs MovementLog[]
+  photos        AssetPhoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([current_status, current_location])
+}
+
+model MovementLog {
+  log_id       String @id @default(uuid()) @db.Uuid
+  asset_number String
+  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+
+  from_location String?
+  fromLoc       Location? @relation("FromLocation", fields: [from_location], references: [location_id])
+
+  to_location String
+  toLoc       Location @relation("ToLocation", fields: [to_location], references: [location_id])
+
+  previous_status String?
+  new_status      String
+
+  handled_by String @db.Uuid
+  handler    User   @relation(fields: [handled_by], references: [id])
+
+  timestamp        DateTime
+  sync_status      String   @default("Synced") // Pending, Syncing, Synced, Failed, Conflict
+  is_offline_entry Boolean  @default(false)
+  remarks          String?  @db.Text
+  device_id        String?
+
+  photos AssetPhoto[]
+
+  createdAt DateTime @default(now())
+
+  @@index([handled_by])
+  @@index([timestamp])
+}
+
+model AssetPhoto {
+  id           String @id @default(uuid()) @db.Uuid
+  asset_number String
+  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+
+  movement_log_id String?      @db.Uuid
+  movement_log    MovementLog? @relation(fields: [movement_log_id], references: [log_id])
+
+  photo_url String
+
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id      String @id @default(uuid()) @db.Uuid
+  user_id String @db.Uuid
+  user    User   @relation(fields: [user_id], references: [id])
+
+  action  String
+  details Json?
+
+  timestamp DateTime @default(now())
+}
+
+model Notification {
+  id      String  @id @default(uuid()) @db.Uuid
+  title   String
+  message String
+  type    String
+  is_read Boolean @default(false)
+
+  createdAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  user_id   String   @unique @db.Uuid
+  user      User     @relation(fields: [user_id], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+}
+
+model Device {
+  id        String  @id @default(uuid()) @db.Uuid
+  user_id   String  @unique @db.Uuid
+  user      User    @relation(fields: [user_id], references: [id])
+  device_id String  @unique
+  fcm_token String?
+
+  last_sync DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Setting {
+  key         String  @id
+  value       String
+  description String?
+
+  updatedAt DateTime @updatedAt
+}
