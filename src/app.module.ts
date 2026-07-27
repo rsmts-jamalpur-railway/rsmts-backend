@@ -14,6 +14,10 @@ import { WagonValidationModule } from './shared/wagon-validation/wagon-validatio
 import { UploadModule } from './shared/upload/upload.module';
 import { AuditModule } from './shared/audit/audit.module';
 import { NotificationModule } from './shared/notification/notification.module';
+import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 @Module({
   imports: [
@@ -59,6 +63,10 @@ import { NotificationModule } from './shared/notification/notification.module';
     UploadModule,
     AuditModule,
     NotificationModule,
+    UsersModule,
+    RolesModule,
+    LocationsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
