@@ -19,6 +19,8 @@ import { RolesModule } from './modules/roles/roles.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AssetsModule } from './modules/assets/assets.module';
+import { StateMachineModule } from './modules/state-machine/state-machine.module';
+import { MovementModule } from './modules/movement/movement.module';
 
 @Module({
   imports: [
@@ -69,6 +71,8 @@ import { AssetsModule } from './modules/assets/assets.module';
     LocationsModule,
     SettingsModule,
     AssetsModule,
+    StateMachineModule,
+    MovementModule,
   ],
   controllers: [AppController],
   providers: [AppService],
