@@ -18,6 +18,7 @@ import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { AssetsModule } from './modules/assets/assets.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     RolesModule,
     LocationsModule,
     SettingsModule,
+    AssetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
