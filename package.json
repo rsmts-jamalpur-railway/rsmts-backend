@@ -28,8 +28,10 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/platform-socket.io": "^11.1.28",
     "@nestjs/swagger": "^11.4.6",
     "@nestjs/terminus": "^11.1.1",
+    "@nestjs/websockets": "^11.1.28",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
     "axios": "^1.18.1",
@@ -40,6 +42,7 @@
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
     "joi": "^18.2.3",
+    "json2csv": "^6.0.0-alpha.2",
     "nestjs-pino": "^4.6.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -47,7 +50,8 @@
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -59,6 +63,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/joi": "^17.2.2",
+    "@types/json2csv": "^5.0.7",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",

@@ -23,6 +23,8 @@ import { StateMachineModule } from './modules/state-machine/state-machine.module
 import { MovementModule } from './modules/movement/movement.module';
 import { OfflineSyncModule } from './modules/offline-sync/offline-sync.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { EventsGateway } from './events/events.gateway';
 
 @Module({
   imports: [
@@ -77,8 +79,9 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     MovementModule,
     OfflineSyncModule,
     DashboardModule,
+    ReportsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, EventsGateway],
 })
 export class AppModule {}
