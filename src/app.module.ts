@@ -10,6 +10,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CoreModule } from './core/core.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { WagonValidationModule } from './shared/wagon-validation/wagon-validation.module';
+import { UploadModule } from './shared/upload/upload.module';
+import { AuditModule } from './shared/audit/audit.module';
+import { NotificationModule } from './shared/notification/notification.module';
 
 @Module({
   imports: [
@@ -51,6 +55,10 @@ import { AuthModule } from './auth/auth.module';
     CoreModule,
     HealthModule,
     AuthModule,
+    WagonValidationModule,
+    UploadModule,
+    AuditModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
