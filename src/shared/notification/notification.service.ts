@@ -16,7 +16,7 @@ export class NotificationService {
    */
   async notify(title: string, message: string, type: string) {
     this.logger.log(`[Notification - ${type}] ${title}: ${message}`);
-    
+
     const notification = await this.prisma.notification.create({
       data: {
         title,

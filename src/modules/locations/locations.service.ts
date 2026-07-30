@@ -15,18 +15,27 @@ export class LocationsService {
   }
 
   async findOne(id: string) {
-    const loc = await this.prisma.location.findUnique({ where: { location_id: id } });
+    const loc = await this.prisma.location.findUnique({
+      where: { location_id: id },
+    });
     if (!loc) throw new NotFoundException('Location not found');
     return loc;
   }
 
-  async update(id: string, updateLocationDto: UpdateLocationDto, currentUserId: string) {
+  async update(
+    id: string,
+    updateLocationDto: UpdateLocationDto,
+    currentUserId: string,
+  ) {
     const loc = await this.prisma.location.update({
       where: { location_id: id },
-      data: updateLocationDto
+      data: updateLocationDto,
     });
 
-    await this.audit.logAction(currentUserId, 'UPDATE_LOCATION', { location: id, updates: updateLocationDto });
+    await this.audit.logAction(currentUserId, 'UPDATE_LOCATION', {
+      location: id,
+      updates: updateLocationDto,
+    });
     return loc;
   }
 }

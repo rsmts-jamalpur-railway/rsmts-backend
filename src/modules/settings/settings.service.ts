@@ -15,20 +15,29 @@ export class SettingsService {
   }
 
   async findOne(keyParam: string) {
-    const setting = await this.prisma.setting.findUnique({ where: { key: keyParam } });
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: keyParam },
+    });
     if (!setting) throw new NotFoundException('Setting not found');
     return setting;
   }
 
-  async update(keyParam: string, updateSettingDto: UpdateSettingDto, currentUserId: string) {
+  async update(
+    keyParam: string,
+    updateSettingDto: UpdateSettingDto,
+    currentUserId: string,
+  ) {
     const setting = await this.prisma.setting.update({
       where: { key: keyParam },
       data: {
         value: updateSettingDto.setting_value,
-      }
+      },
     });
 
-    await this.audit.logAction(currentUserId, 'UPDATE_SETTING', { key: keyParam, value: updateSettingDto.setting_value });
+    await this.audit.logAction(currentUserId, 'UPDATE_SETTING', {
+      key: keyParam,
+      value: updateSettingDto.setting_value,
+    });
     return setting;
   }
 }

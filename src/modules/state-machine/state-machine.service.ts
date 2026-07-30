@@ -8,11 +8,11 @@ export class StateMachineService {
   // Valid transitions mapped as { [currentState]: allowedNextStates[] }
   private readonly validTransitions: Record<string, string[]> = {
     'Received NSY': ['Allocated'],
-    'Allocated': ['Accepted', 'Received NSY'], // Can cancel allocation back to NSY
-    'Accepted': ['Repair'],
-    'Repair': ['Shop Out'],
+    Allocated: ['Accepted', 'Received NSY'], // Can cancel allocation back to NSY
+    Accepted: ['Repair'],
+    Repair: ['Shop Out'],
     'Shop Out': ['Fit', 'Repair'],
-    'Fit': ['Dispatched'],
+    Fit: ['Dispatched'],
     'Ready For Dispatch': ['Dispatched'],
   };
 
@@ -22,7 +22,9 @@ export class StateMachineService {
   validateTransition(currentStatus: string, newStatus: string): boolean {
     const allowed = this.validTransitions[currentStatus];
     if (!allowed || !allowed.includes(newStatus)) {
-      throw new BadRequestException(`Invalid state transition from '${currentStatus}' to '${newStatus}'`);
+      throw new BadRequestException(
+        `Invalid state transition from '${currentStatus}' to '${newStatus}'`,
+      );
     }
     return true;
   }
@@ -45,10 +47,13 @@ export class StateMachineService {
     }
 
     // Treat both currently present and allocated (incoming) as occupying capacity
-    const currentOccupancy = location._count.assets_current + location._count.assets_allocated;
+    const currentOccupancy =
+      location._count.assets_current + location._count.assets_allocated;
 
     if (currentOccupancy >= location.max_capacity) {
-      throw new BadRequestException(`Capacity full at location ${locationId}. Max: ${location.max_capacity}`);
+      throw new BadRequestException(
+        `Capacity full at location ${locationId}. Max: ${location.max_capacity}`,
+      );
     }
 
     return true;

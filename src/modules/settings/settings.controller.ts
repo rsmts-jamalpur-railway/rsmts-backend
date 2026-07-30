@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { UpdateSettingDto } from './dto/update-setting.dto';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
@@ -26,7 +34,11 @@ export class SettingsController {
 
   @Patch(':key')
   @ApiOperation({ summary: 'Update system setting' })
-  update(@Param('key') key: string, @Body() updateSettingDto: UpdateSettingDto, @Request() req) {
+  update(
+    @Param('key') key: string,
+    @Body() updateSettingDto: UpdateSettingDto,
+    @Request() req,
+  ) {
     return this.settingsService.update(key, updateSettingDto, req.user.userId);
   }
 }

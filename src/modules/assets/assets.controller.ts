@@ -1,8 +1,24 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Request,
+  Query,
+} from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { RolesGuard, Roles } from '../../auth/roles.guard';
 
 @ApiTags('Assets')
@@ -19,7 +35,14 @@ export class AssetsController {
     return this.assetsService.create(createAssetDto, req.user.userId);
   }
 
-  @Roles('Administrator', 'Management', 'SSE', 'WRS_5_Inspector', 'Shop_InCharge', 'Yard_Master')
+  @Roles(
+    'Administrator',
+    'Management',
+    'SSE',
+    'WRS_5_Inspector',
+    'Shop_InCharge',
+    'Yard_Master',
+  )
   @Get()
   @ApiOperation({ summary: 'Search and list assets' })
   @ApiQuery({ name: 'status', required: false })
@@ -30,7 +53,14 @@ export class AssetsController {
     return this.assetsService.findAll(query);
   }
 
-  @Roles('Administrator', 'Management', 'SSE', 'WRS_5_Inspector', 'Shop_InCharge', 'Yard_Master')
+  @Roles(
+    'Administrator',
+    'Management',
+    'SSE',
+    'WRS_5_Inspector',
+    'Shop_InCharge',
+    'Yard_Master',
+  )
   @Get(':asset_number')
   @ApiOperation({ summary: 'Get asset details including movement history' })
   findOne(@Param('asset_number') asset_number: string) {
@@ -40,8 +70,16 @@ export class AssetsController {
   @Roles('Administrator', 'Management', 'SSE')
   @Patch(':asset_number')
   @ApiOperation({ summary: 'Update asset details' })
-  update(@Param('asset_number') asset_number: string, @Body() updateAssetDto: UpdateAssetDto, @Request() req) {
-    return this.assetsService.update(asset_number, updateAssetDto, req.user.userId);
+  update(
+    @Param('asset_number') asset_number: string,
+    @Body() updateAssetDto: UpdateAssetDto,
+    @Request() req,
+  ) {
+    return this.assetsService.update(
+      asset_number,
+      updateAssetDto,
+      req.user.userId,
+    );
   }
 
   @Roles('Administrator', 'Management')

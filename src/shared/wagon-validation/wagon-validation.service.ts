@@ -39,7 +39,7 @@ export class WagonValidationService {
 
     // Step 6: Calculate check digit
     let calculatedCheckDigit = nextMultipleOf10 - s4;
-    
+
     // If next multiple is same as s4 (e.g. s4 is 60), check digit is 0
     if (calculatedCheckDigit === 10) {
       calculatedCheckDigit = 0;

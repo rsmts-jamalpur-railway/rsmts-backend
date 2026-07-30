@@ -1,7 +1,21 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Get,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Public } from './public.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Roles, RolesGuard } from './roles.guard';
@@ -33,7 +47,9 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('Administrator', 'Management')
   @Get('me')
-  @ApiOperation({ summary: 'Get current user profile (Requires Admin or Management role)' })
+  @ApiOperation({
+    summary: 'Get current user profile (Requires Admin or Management role)',
+  })
   getProfile(@Request() req) {
     return req.user;
   }

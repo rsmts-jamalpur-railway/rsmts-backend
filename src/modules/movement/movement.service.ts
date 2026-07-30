@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateMovementDto } from './dto/create-movement.dto';
 import { StateMachineService } from '../state-machine/state-machine.service';
@@ -16,7 +20,7 @@ export class MovementService {
 
   async recordMovement(dto: CreateMovementDto, currentUserId: string) {
     const asset = await this.prisma.asset.findUnique({
-      where: { asset_number: dto.asset_number }
+      where: { asset_number: dto.asset_number },
     });
 
     if (!asset) {
@@ -40,7 +44,6 @@ export class MovementService {
 
     // 3. Execute Transaction
     const result = await this.prisma.$transaction(async (prisma) => {
-      
       let allocatedShop = asset.allocated_shop;
       let currentLocation = asset.current_location;
 
@@ -64,7 +67,7 @@ export class MovementService {
           current_location: currentLocation,
           allocated_shop: allocatedShop,
           is_active: dto.new_status === 'Dispatched' ? false : true,
-        }
+        },
       });
 
       // Create Movement Log
@@ -79,22 +82,22 @@ export class MovementService {
           timestamp: new Date(),
           remarks: dto.remarks,
           is_offline_entry: dto.is_offline_entry ?? false,
-        }
+        },
       });
 
       return { asset: updatedAsset, log };
     });
 
     // 4. Audit & Notify
-    await this.audit.logAction(currentUserId, 'MOVEMENT_RECORDED', { 
-      asset_number: asset.asset_number, 
-      transition: `${asset.current_status} -> ${dto.new_status}` 
+    await this.audit.logAction(currentUserId, 'MOVEMENT_RECORDED', {
+      asset_number: asset.asset_number,
+      transition: `${asset.current_status} -> ${dto.new_status}`,
     });
 
     await this.notification.notify(
       `Wagon ${dto.new_status}`,
       `Asset ${asset.asset_number} transitioned to ${dto.new_status} at ${toLocation}`,
-      'MOVEMENT'
+      'MOVEMENT',
     );
 
     return result;

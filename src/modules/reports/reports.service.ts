@@ -6,7 +6,10 @@ import { parse } from 'json2csv';
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async generateMovementsReport(startDate?: string, endDate?: string): Promise<string> {
+  async generateMovementsReport(
+    startDate?: string,
+    endDate?: string,
+  ): Promise<string> {
     const where: any = {};
     if (startDate && endDate) {
       where.timestamp = {
@@ -25,7 +28,7 @@ export class ReportsService {
       return ''; // Return empty CSV
     }
 
-    const flattened = logs.map(log => ({
+    const flattened = logs.map((log) => ({
       'Log ID': log.log_id,
       'Asset Number': log.asset_number,
       'From Location': log.from_location || 'N/A',
@@ -33,13 +36,20 @@ export class ReportsService {
       'Previous Status': log.previous_status || 'N/A',
       'New Status': log.new_status,
       'Handled By': log.handler.full_name,
-      'Timestamp': log.timestamp.toISOString(),
-      'Remarks': log.remarks || '',
+      Timestamp: log.timestamp.toISOString(),
+      Remarks: log.remarks || '',
     }));
 
     const fields = [
-      'Log ID', 'Asset Number', 'From Location', 'To Location', 
-      'Previous Status', 'New Status', 'Handled By', 'Timestamp', 'Remarks'
+      'Log ID',
+      'Asset Number',
+      'From Location',
+      'To Location',
+      'Previous Status',
+      'New Status',
+      'Handled By',
+      'Timestamp',
+      'Remarks',
     ];
 
     return parse(flattened, { fields });

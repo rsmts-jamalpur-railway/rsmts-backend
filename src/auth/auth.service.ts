@@ -28,7 +28,7 @@ export class AuthService {
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid employee ID or password');
     }
@@ -39,7 +39,11 @@ export class AuthService {
       data: { last_login: new Date() },
     });
 
-    const payload = { sub: user.id, employee_id: user.employee_id, role: user.role.role_name };
+    const payload = {
+      sub: user.id,
+      employee_id: user.employee_id,
+      role: user.role.role_name,
+    };
 
     // Generate tokens
     const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
@@ -48,12 +52,15 @@ export class AuthService {
     // Store refresh token in db
     await this.prisma.refreshToken.upsert({
       where: { user_id: user.id },
-      update: { token: refreshToken, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-      create: { 
-        user_id: user.id, 
-        token: refreshToken, 
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) 
-      }
+      update: {
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      create: {
+        user_id: user.id,
+        token: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
     });
 
     // Log the audit
@@ -61,8 +68,8 @@ export class AuthService {
       data: {
         user_id: user.id,
         action: 'LOGIN',
-        details: { message: 'User logged in successfully' }
-      }
+        details: { message: 'User logged in successfully' },
+      },
     });
 
     return {
@@ -77,7 +84,7 @@ export class AuthService {
       tokens: {
         access_token: accessToken,
         refresh_token: refreshToken,
-      }
+      },
     };
   }
 
@@ -85,18 +92,28 @@ export class AuthService {
     try {
       const decoded = this.jwtService.verify(refreshToken);
       const storedToken = await this.prisma.refreshToken.findUnique({
-        where: { user_id: decoded.sub }
+        where: { user_id: decoded.sub },
       });
 
-      if (!storedToken || storedToken.token !== refreshToken || storedToken.expiresAt < new Date()) {
+      if (
+        !storedToken ||
+        storedToken.token !== refreshToken ||
+        storedToken.expiresAt < new Date()
+      ) {
         throw new UnauthorizedException('Invalid or expired refresh token');
       }
 
-      const payload = { sub: decoded.sub, employee_id: decoded.employee_id, role: decoded.role };
-      const newAccessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
+      const payload = {
+        sub: decoded.sub,
+        employee_id: decoded.employee_id,
+        role: decoded.role,
+      };
+      const newAccessToken = this.jwtService.sign(payload, {
+        expiresIn: '15m',
+      });
 
       return {
-        access_token: newAccessToken
+        access_token: newAccessToken,
       };
     } catch (e) {
       throw new UnauthorizedException('Invalid or expired refresh token');

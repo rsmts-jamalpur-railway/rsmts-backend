@@ -7,7 +7,7 @@ export class RolesService {
 
   findAll() {
     return this.prisma.role.findMany({
-      orderBy: { id: 'asc' }
+      orderBy: { id: 'asc' },
     });
   }
 }

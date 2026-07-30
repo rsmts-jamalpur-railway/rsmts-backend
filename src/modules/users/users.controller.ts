@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -33,7 +42,11 @@ export class UsersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update user account' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Request() req) {
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Request() req,
+  ) {
     return this.usersService.update(id, updateUserDto, req.user.userId);
   }
 }

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
@@ -23,15 +27,20 @@ export class AssetsService {
 
     // Check if asset already exists and is active
     const existingAsset = await this.prisma.asset.findUnique({
-      where: { asset_number: createAssetDto.asset_number }
+      where: { asset_number: createAssetDto.asset_number },
     });
 
     if (existingAsset && existingAsset.is_active) {
-      throw new BadRequestException('Asset is already actively tracking in the system');
+      throw new BadRequestException(
+        'Asset is already actively tracking in the system',
+      );
     }
 
     // Determine initial status based on origin
-    const initialStatus = createAssetDto.origin === 'NEW_MFG' ? 'Ready For Dispatch' : 'Received NSY';
+    const initialStatus =
+      createAssetDto.origin === 'NEW_MFG'
+        ? 'Ready For Dispatch'
+        : 'Received NSY';
     const initialLocation = createAssetDto.origin === 'NEW_MFG' ? 'GIF' : 'NSY'; // Assuming GIF for new mfg, NSY for repair
 
     // Start a transaction to create asset and initial movement log
@@ -48,7 +57,7 @@ export class AssetsService {
             allocated_shop: null,
             asset_type: createAssetDto.asset_type,
             origin: createAssetDto.origin,
-          }
+          },
         });
       } else {
         // Create new asset
@@ -59,7 +68,7 @@ export class AssetsService {
             origin: createAssetDto.origin,
             current_status: initialStatus,
             current_location: initialLocation,
-          }
+          },
         });
       }
 
@@ -72,17 +81,19 @@ export class AssetsService {
           handled_by: currentUserId,
           timestamp: new Date(),
           remarks: 'Asset registered into the system',
-        }
+        },
       });
 
       return asset;
     });
 
-    await this.audit.logAction(currentUserId, 'REGISTER_ASSET', { asset_number: result.asset_number });
+    await this.audit.logAction(currentUserId, 'REGISTER_ASSET', {
+      asset_number: result.asset_number,
+    });
     await this.notification.notify(
       'New Asset Received',
       `Asset ${result.asset_number} (${result.asset_type}) has been received at ${initialLocation}`,
-      'INFO'
+      'INFO',
     );
 
     return result;
@@ -106,11 +117,11 @@ export class AssetsService {
         take,
         include: {
           location: { select: { location_id: true } },
-          allocatedTo: { select: { location_id: true } }
+          allocatedTo: { select: { location_id: true } },
         },
-        orderBy: { updatedAt: 'desc' }
+        orderBy: { updatedAt: 'desc' },
       }),
-      this.prisma.asset.count({ where })
+      this.prisma.asset.count({ where }),
     ]);
 
     return {
@@ -118,8 +129,8 @@ export class AssetsService {
       meta: {
         total,
         page: Number(page),
-        last_page: Math.ceil(total / take)
-      }
+        last_page: Math.ceil(total / take),
+      },
     };
   }
 
@@ -129,36 +140,47 @@ export class AssetsService {
       include: {
         movement_logs: {
           orderBy: { timestamp: 'desc' },
-          include: { handler: { select: { full_name: true } } }
-        }
-      }
+          include: { handler: { select: { full_name: true } } },
+        },
+      },
     });
 
     if (!asset) throw new NotFoundException('Asset not found');
     return asset;
   }
 
-  async update(asset_number: string, updateAssetDto: UpdateAssetDto, currentUserId: string) {
-    const asset = await this.prisma.asset.findUnique({ where: { asset_number } });
+  async update(
+    asset_number: string,
+    updateAssetDto: UpdateAssetDto,
+    currentUserId: string,
+  ) {
+    const asset = await this.prisma.asset.findUnique({
+      where: { asset_number },
+    });
     if (!asset) throw new NotFoundException('Asset not found');
 
     const updated = await this.prisma.asset.update({
       where: { asset_number },
-      data: updateAssetDto
+      data: updateAssetDto,
     });
 
-    await this.audit.logAction(currentUserId, 'UPDATE_ASSET', { asset_number, updates: updateAssetDto });
+    await this.audit.logAction(currentUserId, 'UPDATE_ASSET', {
+      asset_number,
+      updates: updateAssetDto,
+    });
     return updated;
   }
 
   async remove(asset_number: string, currentUserId: string) {
-    const asset = await this.prisma.asset.findUnique({ where: { asset_number } });
+    const asset = await this.prisma.asset.findUnique({
+      where: { asset_number },
+    });
     if (!asset) throw new NotFoundException('Asset not found');
 
     // Soft delete
     const deleted = await this.prisma.asset.update({
       where: { asset_number },
-      data: { is_active: false }
+      data: { is_active: false },
     });
 
     await this.audit.logAction(currentUserId, 'DELETE_ASSET', { asset_number });

@@ -12,12 +12,18 @@ export class WorkflowMovementDto {
   @IsOptional()
   to_location?: string;
 
-  @ApiProperty({ description: 'Any remarks for this movement', required: false })
+  @ApiProperty({
+    description: 'Any remarks for this movement',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   remarks?: string;
 
-  @ApiProperty({ description: 'Flag if this was recorded offline and synced later', required: false })
+  @ApiProperty({
+    description: 'Flag if this was recorded offline and synced later',
+    required: false,
+  })
   @IsBoolean()
   @IsOptional()
   is_offline_entry?: boolean;

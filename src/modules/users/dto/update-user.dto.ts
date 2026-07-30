@@ -21,7 +21,7 @@ export class UpdateUserDto {
   @IsInt()
   @IsOptional()
   role_id?: number;
-  
+
   @ApiProperty({ required: false })
   @IsBoolean()
   @IsOptional()

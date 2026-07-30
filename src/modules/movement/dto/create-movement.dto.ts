@@ -7,7 +7,9 @@ export class CreateMovementDto {
   @IsNotEmpty()
   asset_number: string;
 
-  @ApiProperty({ description: 'The new status (e.g. Allocated, Accepted, Repair)' })
+  @ApiProperty({
+    description: 'The new status (e.g. Allocated, Accepted, Repair)',
+  })
   @IsString()
   @IsNotEmpty()
   new_status: string;
@@ -17,12 +19,18 @@ export class CreateMovementDto {
   @IsOptional()
   to_location?: string;
 
-  @ApiProperty({ description: 'Any remarks for this movement', required: false })
+  @ApiProperty({
+    description: 'Any remarks for this movement',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   remarks?: string;
 
-  @ApiProperty({ description: 'Flag if this was recorded offline and synced later', required: false })
+  @ApiProperty({
+    description: 'Flag if this was recorded offline and synced later',
+    required: false,
+  })
   @IsBoolean()
   @IsOptional()
   is_offline_entry?: boolean;

@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -13,13 +17,15 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto, currentUserId: string) {
-    const exists = await this.prisma.user.findUnique({ where: { employee_id: createUserDto.employee_id } });
+    const exists = await this.prisma.user.findUnique({
+      where: { employee_id: createUserDto.employee_id },
+    });
     if (exists) {
       throw new BadRequestException('Employee ID already exists');
     }
 
     const password_hash = await bcrypt.hash(createUserDto.password, 10);
-    
+
     const user = await this.prisma.user.create({
       data: {
         employee_id: createUserDto.employee_id,
@@ -32,42 +38,70 @@ export class UsersService {
         created_by: currentUserId,
       },
       select: {
-        id: true, employee_id: true, full_name: true, role: true, is_active: true
-      }
+        id: true,
+        employee_id: true,
+        full_name: true,
+        role: true,
+        is_active: true,
+      },
     });
 
-    await this.audit.logAction(currentUserId, 'CREATE_USER', { target_user: user.employee_id });
+    await this.audit.logAction(currentUserId, 'CREATE_USER', {
+      target_user: user.employee_id,
+    });
     return user;
   }
 
   async findAll() {
     return this.prisma.user.findMany({
       select: {
-        id: true, employee_id: true, full_name: true, department: true, designation: true, is_active: true, role: true, last_login: true
-      }
+        id: true,
+        employee_id: true,
+        full_name: true,
+        department: true,
+        designation: true,
+        is_active: true,
+        role: true,
+        last_login: true,
+      },
     });
   }
 
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
-      select: { id: true, employee_id: true, full_name: true, department: true, designation: true, is_active: true, role: true }
+      select: {
+        id: true,
+        employee_id: true,
+        full_name: true,
+        department: true,
+        designation: true,
+        is_active: true,
+        role: true,
+      },
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, currentUserId: string) {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    currentUserId: string,
+  ) {
     const user = await this.prisma.user.update({
       where: { id },
       data: {
         ...updateUserDto,
         updated_by: currentUserId,
       },
-      select: { id: true, employee_id: true, full_name: true }
+      select: { id: true, employee_id: true, full_name: true },
     });
 
-    await this.audit.logAction(currentUserId, 'UPDATE_USER', { target_user: user.employee_id, updates: updateUserDto });
+    await this.audit.logAction(currentUserId, 'UPDATE_USER', {
+      target_user: user.employee_id,
+      updates: updateUserDto,
+    });
     return user;
   }
 }

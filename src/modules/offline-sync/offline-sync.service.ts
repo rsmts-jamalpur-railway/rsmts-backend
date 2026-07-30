@@ -17,11 +17,11 @@ export class OfflineSyncService {
 
     // Fetch changes for assets and movement_logs since lastPulledDate
     const updatedAssets = await this.prisma.asset.findMany({
-      where: { updatedAt: { gt: lastPulledDate } }
+      where: { updatedAt: { gt: lastPulledDate } },
     });
 
     const newMovementLogs = await this.prisma.movementLog.findMany({
-      where: { createdAt: { gt: lastPulledDate } }
+      where: { createdAt: { gt: lastPulledDate } },
     });
 
     return {
@@ -29,15 +29,15 @@ export class OfflineSyncService {
         assets: {
           created: [], // Assuming assets are created on server, but synced down as updated for simplicity
           updated: updatedAssets,
-          deleted: [] // We use soft deletes
+          deleted: [], // We use soft deletes
         },
         movement_logs: {
           created: newMovementLogs,
           updated: [],
-          deleted: []
-        }
+          deleted: [],
+        },
       },
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -45,7 +45,7 @@ export class OfflineSyncService {
     const { changes, last_pulled_at } = dto;
     const lastPulledDate = new Date(last_pulled_at);
 
-    // In a full implementation, we'd iterate over changes.movement_logs.created 
+    // In a full implementation, we'd iterate over changes.movement_logs.created
     // and apply them via MovementService to ensure validation and transactions.
     // For this boilerplate, we'll process created movement_logs.
 
@@ -53,18 +53,21 @@ export class OfflineSyncService {
       for (const log of changes.movement_logs.created) {
         // Attempt to apply the movement
         try {
-          await this.movementService.recordMovement({
-            asset_number: log.asset_number,
-            new_status: log.new_status,
-            to_location: log.to_location,
-            remarks: log.remarks,
-            is_offline_entry: true,
-          }, currentUserId);
+          await this.movementService.recordMovement(
+            {
+              asset_number: log.asset_number,
+              new_status: log.new_status,
+              to_location: log.to_location,
+              remarks: log.remarks,
+              is_offline_entry: true,
+            },
+            currentUserId,
+          );
         } catch (error) {
           // Log conflict / failure
           await this.audit.logAction(currentUserId, 'SYNC_CONFLICT', {
             log,
-            error: error.message
+            error: error.message,
           });
           // Note: Real world WatermelonDB handles conflicts gracefully. We'll skip failed ones.
         }
@@ -74,7 +77,7 @@ export class OfflineSyncService {
     // Update Device sync timestamp
     await this.prisma.device.updateMany({
       where: { user_id: currentUserId },
-      data: { last_sync: new Date() }
+      data: { last_sync: new Date() },
     });
 
     return { success: true };

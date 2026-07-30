@@ -26,7 +26,7 @@ import { MovementModule } from './modules/movement/movement.module';
 import { OfflineSyncModule } from './modules/offline-sync/offline-sync.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
-import { EventsGateway } from './events/events.gateway';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { EventsGateway } from './events/events.gateway';
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
       }),
     }),
-    
+
     // 2. Logger (Pino)
     LoggerModule.forRoot({
       pinoHttp: {
@@ -65,10 +65,12 @@ import { EventsGateway } from './events/events.gateway';
     }),
 
     // 4. Rate Limiting
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100, // 100 requests per minute
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100, // 100 requests per minute
+      },
+    ]),
 
     PrismaModule,
     CoreModule,
@@ -88,15 +90,15 @@ import { EventsGateway } from './events/events.gateway';
     OfflineSyncModule,
     DashboardModule,
     ReportsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [
-    AppService, 
-    EventsGateway,
+    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
-    }
+    },
   ],
 })
 export class AppModule {}
