@@ -8,7 +8,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) {}
+  ) { }
 
   async getOverview() {
     const cacheKey = 'dashboard_overview';
