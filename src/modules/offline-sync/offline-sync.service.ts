@@ -12,6 +12,15 @@ export class OfflineSyncService {
     private readonly audit: AuditService,
   ) {}
 
+  async getSyncStatus() {
+    return this.prisma.device.findMany({
+      include: {
+        user: { select: { full_name: true, employee_id: true } }
+      },
+      orderBy: { last_sync: 'desc' }
+    });
+  }
+
   async pullChanges(lastPulledAt: number, currentUserId: string) {
     const lastPulledDate = new Date(lastPulledAt);
 

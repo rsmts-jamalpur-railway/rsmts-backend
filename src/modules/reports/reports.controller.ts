@@ -17,6 +17,18 @@ import type { Response } from 'express';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
+  @Roles('Administrator', 'Management', 'SSE')
+  @Get('movements-data')
+  @ApiOperation({ summary: 'Get movement logs data for DataTable' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async getMovementsData(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getMovementsData(startDate, endDate);
+  }
+
   @Roles('Administrator', 'Management')
   @Get('movements')
   @ApiOperation({ summary: 'Export movement logs as CSV' })

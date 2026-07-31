@@ -24,7 +24,7 @@ export class DashboardService {
     });
     const dispatchedToday = await this.prisma.movementLog.count({
       where: {
-        new_status: 'Dispatched',
+        new_status: 'Workshop Out',
         timestamp: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
       },
     });

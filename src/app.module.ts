@@ -56,11 +56,20 @@ import { EventsModule } from './events/events.module';
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        store: await redisStore({
+      useFactory: async (configService: ConfigService) => {
+        const store = await redisStore({
           url: configService.get<string>('REDIS_URL'),
-        }),
-      }),
+        });
+
+        // Prevent unhandled error crashes on ECONNRESET
+        if (store.client) {
+          store.client.on('error', (err: any) => {
+            console.error('Redis Client Error:', err.message);
+          });
+        }
+
+        return { store };
+      },
       inject: [ConfigService],
     }),
 
@@ -68,7 +77,7 @@ import { EventsModule } from './events/events.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 100, // 100 requests per minute
+        limit: 1000, // 1000 requests per minute
       },
     ]),
 

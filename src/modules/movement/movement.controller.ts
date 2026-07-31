@@ -4,10 +4,11 @@ import { CreateMovementDto } from './dto/create-movement.dto';
 import { WorkflowMovementDto } from './dto/workflow-movement.dto';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { RolesGuard, Roles } from '../../auth/roles.guard';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @ApiTags('Movement & Tracking (Workflows)')
 @ApiBearerAuth()
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('movement')
 export class MovementController {
   constructor(private readonly movementService: MovementService) {}

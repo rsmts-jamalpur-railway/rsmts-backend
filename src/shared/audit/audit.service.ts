@@ -17,4 +17,12 @@ export class AuditService {
       },
     });
   }
+
+  async getAuditLogs() {
+    return this.prisma.auditLog.findMany({
+      include: { user: { select: { employee_id: true, full_name: true } } },
+      orderBy: { timestamp: 'desc' },
+      take: 200,
+    });
+  }
 }

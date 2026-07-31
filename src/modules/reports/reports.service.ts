@@ -6,6 +6,22 @@ import { parse } from 'json2csv';
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getMovementsData(startDate?: string, endDate?: string) {
+    const where: any = {};
+    if (startDate && endDate) {
+      where.timestamp = {
+        gte: new Date(startDate),
+        lte: new Date(`${endDate}T23:59:59.999Z`),
+      };
+    }
+
+    return this.prisma.movementLog.findMany({
+      where,
+      include: { handler: { select: { full_name: true } } },
+      orderBy: { timestamp: 'desc' },
+    });
+  }
+
   async generateMovementsReport(
     startDate?: string,
     endDate?: string,
@@ -14,7 +30,7 @@ export class ReportsService {
     if (startDate && endDate) {
       where.timestamp = {
         gte: new Date(startDate),
-        lte: new Date(endDate),
+        lte: new Date(`${endDate}T23:59:59.999Z`),
       };
     }
 

@@ -39,4 +39,10 @@ export class OfflineSyncController {
   pushChanges(@Body() dto: SyncPushDto, @Request() req) {
     return this.offlineSyncService.pushChanges(dto, req.user.userId);
   }
+
+  @Get('status')
+  @ApiOperation({ summary: 'Get sync health of all devices' })
+  getSyncStatus() {
+    return this.offlineSyncService.getSyncStatus();
+  }
 }
