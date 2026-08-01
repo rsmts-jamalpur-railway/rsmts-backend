@@ -7,13 +7,15 @@ export class StateMachineService {
 
   // Valid transitions mapped as { [currentState]: allowedNextStates[] }
   private readonly validTransitions: Record<string, string[]> = {
-    'Received NSY': ['Allocated'],
-    Allocated: ['Accepted', 'Received NSY'], // Can cancel allocation back to NSY
-    Accepted: ['Repair'],
-    Repair: ['Shop Out'],
-    'Shop Out': ['Fit', 'Repair'],
-    Fit: ['Dispatched'],
-    'Ready For Dispatch': ['Dispatched'],
+    'NSY IN': ['Allocated', 'Shop In'],
+    'GIF IN': ['NSY OUT'],
+    'CRANE IN': ['NSY OUT'],
+    'Allocated': ['Shop In', 'NSY IN'],
+    'Shop In': ['WRS-5 In'],
+    'WRS-5 In': ['Fit', 'Not Fit'],
+    'Not Fit': ['Shop In', 'WRS-5 In'],
+    'Fit': ['NSY OUT'],
+    'NSY OUT': ['NSY IN'],
   };
 
   /**

@@ -64,6 +64,7 @@ export class UsersService {
         role: true,
         last_login: true,
       },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

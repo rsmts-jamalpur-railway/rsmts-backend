@@ -13,6 +13,7 @@ import {
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { GetAssetsQueryDto } from './dto/get-assets-query.dto';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -49,7 +50,7 @@ export class AssetsController {
   @ApiQuery({ name: 'location', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  findAll(@Query() query: any) {
+  findAll(@Query() query: GetAssetsQueryDto) {
     return this.assetsService.findAll(query);
   }
 

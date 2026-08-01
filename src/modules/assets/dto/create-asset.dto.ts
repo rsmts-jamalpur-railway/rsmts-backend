@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, Length } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, Length, IsOptional, IsInt } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAssetDto {
@@ -18,10 +18,39 @@ export class CreateAssetDto {
   asset_type: string;
 
   @ApiProperty({
-    description: 'REPAIR or NEW_MFG',
-    enum: ['REPAIR', 'NEW_MFG'],
+    description: 'REPAIR, GIF, or CRANE',
+    enum: ['REPAIR', 'GIF', 'CRANE'],
   })
-  @IsEnum(['REPAIR', 'NEW_MFG'])
+  @IsEnum(['REPAIR', 'GIF', 'CRANE'])
   @IsNotEmpty()
   origin: string;
+
+  @ApiProperty({ description: 'Serial Number', required: false })
+  @IsOptional()
+  @IsString()
+  wagon_sr?: string;
+
+  @ApiProperty({ description: 'Railway Zone', required: false })
+  @IsOptional()
+  @IsString()
+  rly?: string;
+
+  @ApiProperty({ description: 'Modification/Type', required: false })
+  @IsOptional()
+  @IsString()
+  mod?: string;
+
+  @ApiProperty({ description: 'Built Year', required: false })
+  @IsOptional()
+  @IsInt()
+  built_year?: number;
+
+  @ApiProperty({ description: 'Action (e.g. POH)', required: false })
+  @IsOptional()
+  @IsString()
+  action?: string;
+
+  @ApiProperty({ description: 'Custom Fields JSON', required: false })
+  @IsOptional()
+  custom_fields?: any;
 }

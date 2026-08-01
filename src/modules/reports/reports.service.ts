@@ -22,6 +22,29 @@ export class ReportsService {
     });
   }
 
+  async getDistributionData() {
+    const locations = await this.prisma.asset.groupBy({
+      by: ['current_location'],
+      where: { is_active: true },
+      _count: {
+        current_location: true,
+      },
+    });
+
+    const statuses = await this.prisma.asset.groupBy({
+      by: ['current_status'],
+      where: { is_active: true },
+      _count: {
+        current_status: true,
+      },
+    });
+
+    return {
+      locations: locations.map(l => ({ name: l.current_location, value: l._count.current_location })),
+      statuses: statuses.map(s => ({ name: s.current_status, value: s._count.current_status }))
+    };
+  }
+
   async generateMovementsReport(
     startDate?: string,
     endDate?: string,

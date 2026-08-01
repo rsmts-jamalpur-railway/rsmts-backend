@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMovementDto {
@@ -34,4 +34,14 @@ export class CreateMovementDto {
   @IsBoolean()
   @IsOptional()
   is_offline_entry?: boolean;
+
+  @ApiProperty({
+    description: 'Array of base64 strings or URLs for image proofs',
+    required: false,
+    type: [String]
+  })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  photos?: string[];
 }

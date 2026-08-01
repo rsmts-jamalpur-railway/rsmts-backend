@@ -29,6 +29,13 @@ export class ReportsController {
     return this.reportsService.getMovementsData(startDate, endDate);
   }
 
+  @Roles('Administrator', 'Management', 'SSE')
+  @Get('distribution')
+  @ApiOperation({ summary: 'Get aggregated active asset distribution data' })
+  async getDistributionData() {
+    return this.reportsService.getDistributionData();
+  }
+
   @Roles('Administrator', 'Management')
   @Get('movements')
   @ApiOperation({ summary: 'Export movement logs as CSV' })

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
+import { GetAssetsQueryDto } from './dto/get-assets-query.dto';
 import { WagonValidationService } from '../../shared/wagon-validation/wagon-validation.service';
 import { AuditService } from '../../shared/audit/audit.service';
 import { NotificationService } from '../../shared/notification/notification.service';
@@ -25,26 +26,32 @@ export class AssetsService {
       throw new BadRequestException('Invalid wagon check digit');
     }
 
-    // Check if asset already exists and is active
-    const existingAsset = await this.prisma.asset.findUnique({
-      where: { asset_number: createAssetDto.asset_number },
-    });
-
-    if (existingAsset && existingAsset.is_active) {
-      throw new BadRequestException(
-        'Asset is already actively tracking in the system',
-      );
-    }
-
-    // Determine initial status based on origin
     const initialStatus =
-      createAssetDto.origin === 'NEW_MFG'
-        ? 'Ready For Dispatch'
-        : 'Received NSY';
-    const initialLocation = createAssetDto.origin === 'NEW_MFG' ? 'GIF' : 'NSY'; // Assuming GIF for new mfg, NSY for repair
+      createAssetDto.origin === 'GIF'
+        ? 'GIF IN'
+        : createAssetDto.origin === 'CRANE'
+        ? 'CRANE IN'
+        : 'NSY IN';
+    const initialLocation =
+      createAssetDto.origin === 'GIF'
+        ? 'GIF'
+        : createAssetDto.origin === 'CRANE'
+        ? 'CRANE'
+        : 'NSY';
 
     // Start a transaction to create asset and initial movement log
     const result = await this.prisma.$transaction(async (prisma) => {
+      // Check if asset already exists and is active INSIDE transaction
+      const existingAsset = await prisma.asset.findUnique({
+        where: { asset_number: createAssetDto.asset_number },
+      });
+
+      if (existingAsset && existingAsset.is_active) {
+        throw new BadRequestException(
+          'Asset is already actively tracking in the system',
+        );
+      }
+
       let asset;
       if (existingAsset) {
         // Reactivate soft-deleted asset
@@ -57,6 +64,13 @@ export class AssetsService {
             allocated_shop: null,
             asset_type: createAssetDto.asset_type,
             origin: createAssetDto.origin,
+            wagon_sr: createAssetDto.wagon_sr,
+            rly: createAssetDto.rly,
+            mod: createAssetDto.mod,
+            built_year: createAssetDto.built_year,
+            action: createAssetDto.action,
+            nsy_in_date: new Date(),
+            custom_fields: createAssetDto.custom_fields || {},
           },
         });
       } else {
@@ -68,9 +82,25 @@ export class AssetsService {
             origin: createAssetDto.origin,
             current_status: initialStatus,
             current_location: initialLocation,
+            wagon_sr: createAssetDto.wagon_sr,
+            rly: createAssetDto.rly,
+            mod: createAssetDto.mod,
+            built_year: createAssetDto.built_year,
+            action: createAssetDto.action,
+            nsy_in_date: new Date(),
+            custom_fields: createAssetDto.custom_fields || {},
           },
         });
       }
+
+      // Create initial RepairCycle
+      const cycle = await prisma.repairCycle.create({
+        data: {
+          asset_number: asset.asset_number,
+          cycle_number: 1,
+          nsy_in_date: new Date(),
+        }
+      });
 
       // Create initial movement log
       await prisma.movementLog.create({
@@ -81,6 +111,7 @@ export class AssetsService {
           handled_by: currentUserId,
           timestamp: new Date(),
           remarks: 'Asset registered into the system',
+          repair_cycle_id: cycle.id
         },
       });
 
@@ -99,11 +130,14 @@ export class AssetsService {
     return result;
   }
 
-  async findAll(query: any) {
+  async findAll(query: GetAssetsQueryDto) {
     const { status, location, active = 'true', page = 1, limit = 50 } = query;
-    const is_active = active === 'true';
 
-    const where: any = { is_active };
+    const where: any = {};
+    if (active !== 'all') {
+      where.is_active = active === 'true';
+    }
+    
     if (status) where.current_status = status;
     if (location) where.current_location = location;
 
@@ -119,7 +153,7 @@ export class AssetsService {
           location: { select: { location_id: true } },
           allocatedTo: { select: { location_id: true } },
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.asset.count({ where }),
     ]);
@@ -138,9 +172,25 @@ export class AssetsService {
     const asset = await this.prisma.asset.findUnique({
       where: { asset_number },
       include: {
+        repair_cycles: {
+          orderBy: { cycle_number: 'desc' },
+          include: {
+            movement_logs: {
+              orderBy: { timestamp: 'desc' },
+              include: { 
+                handler: { select: { full_name: true } },
+                photos: true
+              },
+            }
+          }
+        },
         movement_logs: {
+          where: { repair_cycle_id: null },
           orderBy: { timestamp: 'desc' },
-          include: { handler: { select: { full_name: true } } },
+          include: { 
+            handler: { select: { full_name: true } },
+            photos: true
+          },
         },
       },
     });

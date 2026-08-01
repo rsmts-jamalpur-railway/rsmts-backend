@@ -52,6 +52,17 @@ model Asset {
   asset_type   String
   origin       String
 
+  wagon_sr     String?
+  rly          String?
+  mod          String?
+  built_year   Int?
+  action       String?
+
+  nsy_in_date  DateTime?
+  shop_in_date DateTime?
+  fit_date     DateTime?
+  nsy_out_date DateTime?
+
   current_location String?
   location         Location? @relation("CurrentLocation", fields: [current_location], references: [location_id])
 
@@ -60,8 +71,11 @@ model Asset {
   allocated_shop String?
   allocatedTo    Location? @relation("AllocatedShop", fields: [allocated_shop], references: [location_id])
 
+  custom_fields Json?
+
   is_active Boolean @default(true)
 
+  repair_cycles RepairCycle[]
   movement_logs MovementLog[]
   photos        AssetPhoto[]
 
@@ -69,6 +83,26 @@ model Asset {
   updatedAt DateTime @updatedAt
 
   @@index([current_status, current_location])
+}
+
+model RepairCycle {
+  id           String @id @default(uuid()) @db.Uuid
+  asset_number String
+  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+
+  cycle_number Int
+
+  nsy_in_date  DateTime?
+  shop_in_date DateTime?
+  fit_date     DateTime?
+  nsy_out_date DateTime?
+
+  tat_days     Int?
+
+  movement_logs MovementLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MovementLog {
@@ -84,6 +118,9 @@ model MovementLog {
 
   previous_status String?
   new_status      String
+
+  repair_cycle_id String?      @db.Uuid
+  repair_cycle    RepairCycle? @relation(fields: [repair_cycle_id], references: [id])
 
   handled_by String @db.Uuid
   handler    User   @relation(fields: [handled_by], references: [id])
