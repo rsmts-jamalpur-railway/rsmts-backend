@@ -69,6 +69,7 @@ export class OfflineSyncService {
               to_location: log.to_location,
               remarks: log.remarks,
               is_offline_entry: true,
+              timestamp: log.timestamp,
             },
             currentUserId,
           );

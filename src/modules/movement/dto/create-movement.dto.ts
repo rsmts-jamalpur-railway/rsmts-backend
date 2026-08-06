@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, IsNumber } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMovementDto {
@@ -44,4 +44,28 @@ export class CreateMovementDto {
   @IsString({ each: true })
   @IsOptional()
   photos?: string[];
+
+  @ApiProperty({
+    description: 'Custom estimated TAT days set during Intake Analysis',
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  estimated_tat_days?: number;
+
+  @ApiProperty({
+    description: 'Mandatory reason if custom TAT exceeds baseline',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  extended_tat_reason?: string;
+
+  @ApiProperty({
+    description: 'The original timestamp of the event (useful for offline sync)',
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  timestamp?: number;
 }

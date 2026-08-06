@@ -2,10 +2,13 @@ import {
   Controller,
   Post,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles,
+  Body,
+  UseGuards,
   BadRequestException,
+  Request,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiConsumes,
@@ -13,64 +16,68 @@ import {
   ApiOperation,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { UploadService } from './upload.service';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @ApiTags('Upload')
 @ApiBearerAuth()
-@Controller('upload')
+@Controller('sync/photos')
+@UseGuards(JwtAuthGuard)
 export class UploadController {
-  @Post('image')
-  @ApiOperation({ summary: 'Upload an asset photo (JPEG/PNG)' })
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Upload asset photos dynamically to Cloudinary' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
+        asset_number: { type: 'string' },
+        photos: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
         },
       },
     },
   })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const randomName = Array(32)
-            .fill(null)
-            .map(() => Math.round(Math.random() * 16).toString(16))
-            .join('');
-          cb(null, `${randomName}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
-          return cb(
-            new BadRequestException('Only image files are allowed!'),
-            false,
-          );
-        }
-        cb(null, true);
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB limit
-      },
-    }),
-  )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('File is not uploaded');
+  @UseInterceptors(FilesInterceptor('photos', 10)) // Max 10 photos
+  async uploadPhotos(
+    @UploadedFiles() files: Array<Express.Multer.File>,
+    @Body('asset_number') assetNumber: string,
+    @Request() req: any,
+  ) {
+    if (!assetNumber) {
+      throw new BadRequestException('asset_number is required');
     }
 
-    // In production, upload to S3 and return the public URL
-    // For local, we just return the local relative path
+    if (!files || files.length === 0) {
+      return { success: true, message: 'No files provided.' };
+    }
+
+    const uploadedUrls: string[] = [];
+
+    // Upload sequentially to Cloudinary (or fallback)
+    for (const file of files) {
+      const url = await this.uploadService.uploadPhotoToCloudinary(file);
+      uploadedUrls.push(url);
+    }
+
+    // Attach to the database
+    const result = await this.uploadService.attachPhotosToLatestLog(
+      assetNumber,
+      req.user.userId,
+      uploadedUrls,
+    );
+
     return {
-      url: `/uploads/${file.filename}`,
-      size: file.size,
-      mimetype: file.mimetype,
+      success: true,
+      message: 'Photos uploaded successfully',
+      count: uploadedUrls.length,
+      log_id: result?.log_id,
     };
   }
 }

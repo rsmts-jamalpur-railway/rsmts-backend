@@ -7,15 +7,22 @@ export class StateMachineService {
 
   // Valid transitions mapped as { [currentState]: allowedNextStates[] }
   private readonly validTransitions: Record<string, string[]> = {
-    'NSY IN': ['Allocated', 'Shop In'],
-    'GIF IN': ['NSY OUT'],
-    'CRANE IN': ['NSY OUT'],
-    'Allocated': ['Shop In', 'NSY IN'],
-    'Shop In': ['WRS-5 In'],
-    'WRS-5 In': ['Fit', 'Not Fit'],
-    'Not Fit': ['Shop In', 'WRS-5 In'],
-    'Fit': ['NSY OUT'],
-    'NSY OUT': ['NSY IN'],
+    'NSY IN': ['Allocated'], // Yard Master assigns to WRS
+    'Allocated': ['Shop In', 'Missing', 'Allocated'], // Accept, Report Missing, or Re-route
+    'Missing': ['Allocated', 'Shop In'], // Admin resolves and returns to queue (Re-route or Mark Found)
+    'Shop In': ['Pending QA', 'Missing', 'Hold', 'Condemned', 'Allocated', 'NSY IN'], // Finish repair (to WRS-5), lost, material shortage, scrapped, forward to another shop, or reject to NSY
+    'Hold': ['Shop In'], // Resume repair
+    'Pending QA': ['Fit', 'Not Fit', 'Minor Fix', 'Condemned', 'Allocated'], // QA results, including redirecting back to shop (Allocated)
+    'Minor Fix': ['Pending QA'], // Local fix complete, re-test
+    'Not Fit': ['Shop In', 'MFG ACTIVE', 'Allocated'], // Send back to repair or mfg
+    'Fit': ['NSY OUT'], // Handover to dispatch
+    'NSY OUT': ['NSY IN'], // Wagon leaves, cycle complete
+    'MFG IN': ['MFG ACTIVE'], // New build starts
+    'MFG ACTIVE': ['Pending QA'], // Assembly finishes, send to QA
+    'Condemned': ['Scrapped'], // Admin approves scrap
+    // Legacy support mappings
+    'GIF IN': ['MFG ACTIVE'],
+    'CRANE IN': ['MFG ACTIVE'],
   };
 
   /**

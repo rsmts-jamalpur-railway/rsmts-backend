@@ -29,6 +29,7 @@ async function main() {
     'WRS_5_Staff',
     'GIF_Shop',
     'Crane_Shop',
+    'Viewer'
   ];
 
   for (const roleName of roles) {

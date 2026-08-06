@@ -97,8 +97,9 @@ model RepairCycle {
   fit_date     DateTime?
   nsy_out_date DateTime?
 
-  tat_days     Int?
-
+  tat_days             Int?
+  estimated_tat_days   Int?
+  extended_tat_reason  String? @db.Text
   movement_logs MovementLog[]
 
   createdAt DateTime @default(now())
