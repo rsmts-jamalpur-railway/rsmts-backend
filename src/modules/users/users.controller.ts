@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Delete,
   Param,
   UseGuards,
   Request,
@@ -49,5 +50,11 @@ export class UsersController {
     @Request() req,
   ) {
     return this.usersService.update(id, updateUserDto, req.user.userId);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Hard delete a user account' })
+  remove(@Param('id') id: string) {
+    return this.usersService.remove(id);
   }
 }

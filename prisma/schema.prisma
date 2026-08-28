@@ -14,9 +14,10 @@ model Role {
 
 model User {
   id            String    @id @default(uuid()) @db.Uuid
-  employee_id   String    @unique
+  email         String    @unique
   password_hash String
   full_name     String
+  note          String?   @db.Text
   department    String?
   designation   String?
   role_id       Int
@@ -39,6 +40,8 @@ model Location {
   location_id        String @id
   max_capacity       Int
   standard_tat_hours Int
+  zone               String?
+  is_parking_line    Boolean @default(false)
 
   movements_from   MovementLog[] @relation("FromLocation")
   movements_to     MovementLog[] @relation("ToLocation")
@@ -47,16 +50,28 @@ model Location {
 }
 
 model Asset {
-  id           String @id @default(uuid()) @db.Uuid
-  asset_number String @unique
-  asset_type   String
-  origin       String
+  id             String @id @default(uuid()) @db.Uuid
+  asset_number   String @unique
+  asset_category String @default("WAGON") // WAGON, LOCO, CRANE, TOWER_CAR
+  asset_type     String
+  origin         String
 
+  // Wagon Specific
   wagon_sr     String?
   rly          String?
   mod          String?
   built_year   Int?
   action       String?
+
+  // Loco Specific
+  loco_type    String?
+
+  // Crane Specific
+  crane_age_tag String?
+
+  // Tower Car Specific
+  tc_variant   String?
+  tc_zone      String?
 
   nsy_in_date  DateTime?
   shop_in_date DateTime?

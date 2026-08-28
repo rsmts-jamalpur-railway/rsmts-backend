@@ -34,7 +34,10 @@ export class MovementService {
       }
 
       // 1. Validate State Transition
-      this.stateMachine.validateTransition(asset.current_status, dto.new_status);
+      this.stateMachine.validateTransition(
+        asset.current_status,
+        dto.new_status,
+      );
 
       // Default to current location if not moving
       const toLocation = dto.to_location || asset.current_location;
@@ -44,18 +47,10 @@ export class MovementService {
         await this.stateMachine.checkLocationCapacity(toLocation);
       }
 
-      // 3. Smart Routing Check (Prevent wrong wagon type assignment)
+      // 3. Smart Routing Check (Prevent wrong asset category assignment)
       if (dto.new_status === 'Allocated' && toLocation) {
-        const allowedTypes: Record<string, string[]> = {
-          'WRS-1': ['BOXN', 'BOXNHL', 'BCN'],
-          'WRS-2': ['BTPN', 'BTPGLN'],
-          'WRS-3': ['FMP', 'BOBRN'],
-          'WRS-4': ['CRANE', 'GIF']
-        };
-        const assetType = (asset.custom_fields as any)?.assetType;
-        if (assetType && allowedTypes[toLocation] && !allowedTypes[toLocation].includes(assetType)) {
-          throw new BadRequestException(`Shop mismatch: ${toLocation} does not handle ${assetType} wagons.`);
-        }
+        const category = asset.asset_category || 'WAGON';
+        this.stateMachine.validateSmartRouting(category, asset.asset_number, toLocation);
       }
 
       // Find active cycle (or create if re-entering)
@@ -64,69 +59,79 @@ export class MovementService {
         orderBy: { cycle_number: 'desc' },
       });
 
-      if (!activeCycle || ((dto.new_status === 'NSY IN' || dto.new_status === 'GIF IN' || dto.new_status === 'CRANE IN') && asset.current_status === 'NSY OUT')) {
+      if (
+        !activeCycle ||
+        ((dto.new_status === 'NSY IN' ||
+          dto.new_status === 'GIF IN' ||
+          dto.new_status === 'CRANE IN') &&
+          asset.current_status === 'NSY OUT')
+      ) {
         activeCycle = await prisma.repairCycle.create({
           data: {
             asset_number: asset.asset_number,
             cycle_number: activeCycle ? activeCycle.cycle_number + 1 : 1,
             nsy_in_date: new Date(),
-          }
+          },
         });
       }
 
       let allocatedShop = asset.allocated_shop;
       let currentLocation = asset.current_location;
-      
+
       let nsy_in_date = asset.nsy_in_date;
       let shop_in_date = asset.shop_in_date;
       let fit_date = asset.fit_date;
       let nsy_out_date = asset.nsy_out_date;
-      
+
       const now = new Date();
 
       if (dto.new_status === 'Allocated') {
-        allocatedShop = toLocation; 
+        allocatedShop = toLocation;
       } else if (dto.new_status === 'Shop In') {
-        currentLocation = toLocation; 
-        allocatedShop = null; 
+        currentLocation = toLocation;
+        allocatedShop = null;
         shop_in_date = shop_in_date || now;
-      } else if (dto.new_status === 'NSY OUT') {
-        currentLocation = null;
+      } else if (dto.new_status === 'Dispatched') {
+        currentLocation = 'OUT';
         allocatedShop = null;
         nsy_out_date = now;
       } else {
         currentLocation = toLocation;
       }
 
-      if (dto.new_status === 'NSY IN' || dto.new_status === 'GIF IN' || dto.new_status === 'CRANE IN') {
+      if (
+        dto.new_status === 'NSY IN' ||
+        dto.new_status === 'GIF IN' ||
+        dto.new_status === 'CRANE IN'
+      ) {
         nsy_in_date = nsy_in_date || now;
       }
       if (dto.new_status === 'Fit') {
-        fit_date = now;
+        fit_date = now; // Passed QA
       }
 
       // Update RepairCycle Dates and TAT
       let tat_days = activeCycle.tat_days;
-      if (dto.new_status === 'NSY OUT' && activeCycle.nsy_in_date) {
+      if (dto.new_status === 'Dispatched' && activeCycle.nsy_in_date) {
         let totalMs = now.getTime() - activeCycle.nsy_in_date.getTime();
-        
+
         // Subtract 'On Hold' duration
         const holdLogs = await prisma.movementLog.findMany({
           where: { repair_cycle_id: activeCycle.id },
-          orderBy: { timestamp: 'asc' }
+          orderBy: { timestamp: 'asc' },
         });
-        
+
         let holdMs = 0;
         let holdStart: number | null = null;
         for (const log of holdLogs) {
-           if (log.new_status === 'Hold') {
-             holdStart = log.timestamp.getTime();
-           } else if (holdStart && log.previous_status === 'Hold') {
-             holdMs += (log.timestamp.getTime() - holdStart);
-             holdStart = null;
-           }
+          if (log.new_status === 'Hold') {
+            holdStart = log.timestamp.getTime();
+          } else if (holdStart && log.previous_status === 'Hold') {
+            holdMs += log.timestamp.getTime() - holdStart;
+            holdStart = null;
+          }
         }
-        
+
         totalMs -= holdMs;
         tat_days = Math.ceil(totalMs / (1000 * 60 * 60 * 24));
       }
@@ -134,14 +139,19 @@ export class MovementService {
       await prisma.repairCycle.update({
         where: { id: activeCycle.id },
         data: {
-          nsy_in_date: dto.new_status === 'NSY IN' || dto.new_status === 'GIF IN' || dto.new_status === 'CRANE IN' ? now : undefined,
+          nsy_in_date:
+            dto.new_status === 'NSY IN' ||
+            dto.new_status === 'GIF IN' ||
+            dto.new_status === 'CRANE IN'
+              ? now
+              : undefined,
           shop_in_date: dto.new_status === 'Shop In' ? now : undefined,
           fit_date: dto.new_status === 'Fit' ? now : undefined,
-          nsy_out_date: dto.new_status === 'NSY OUT' ? now : undefined,
+          nsy_out_date: dto.new_status === 'Dispatched' ? now : undefined,
           tat_days: tat_days,
           estimated_tat_days: dto.estimated_tat_days ?? undefined,
           extended_tat_reason: dto.extended_tat_reason ?? undefined,
-        }
+        },
       });
 
       // Update Asset
@@ -155,7 +165,7 @@ export class MovementService {
           shop_in_date: shop_in_date,
           fit_date: fit_date,
           nsy_out_date: nsy_out_date,
-          is_active: dto.new_status === 'NSY OUT' ? false : true,
+          is_active: dto.new_status === 'Dispatched' ? false : true,
         },
       });
 
@@ -178,11 +188,11 @@ export class MovementService {
       // Save photos if provided
       if (dto.photos && dto.photos.length > 0) {
         await prisma.assetPhoto.createMany({
-          data: dto.photos.map(photo_url => ({
+          data: dto.photos.map((photo_url) => ({
             photo_url,
             asset_number: asset.asset_number,
-            movement_log_id: log.log_id
-          }))
+            movement_log_id: log.log_id,
+          })),
         });
       }
 
@@ -191,13 +201,17 @@ export class MovementService {
         this.notification.notify(
           `CRITICAL: Asset ${asset.asset_number} flagged as ${dto.new_status}`,
           `Handled by ${currentUserId}`,
-          'EXCEPTION'
+          'EXCEPTION',
         );
-      } else if (dto.new_status === 'Allocated' && asset.current_status === 'Allocated' && asset.allocated_shop !== toLocation) {
+      } else if (
+        dto.new_status === 'Allocated' &&
+        asset.current_status === 'Allocated' &&
+        asset.allocated_shop !== toLocation
+      ) {
         this.notification.notify(
           `Re-allocation: Asset ${asset.asset_number} routed to ${toLocation}`,
           `Re-routed before acceptance.`,
-          'EXCEPTION'
+          'EXCEPTION',
         );
       }
 

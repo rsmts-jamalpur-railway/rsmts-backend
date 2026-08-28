@@ -14,8 +14,8 @@ async function verify() {
   const rolesCount = await prisma.role.count();
   console.log(`Roles created: ${rolesCount}`);
 
-  const adminUser = await prisma.user.findUnique({ where: { employee_id: 'ADMIN001' }, include: { role: true } });
-  console.log(`Admin User created: ${adminUser?.full_name} (${adminUser?.role.role_name})`);
+  const adminUser = await prisma.user.findUnique({ where: { email: 'mdfarhan6873@gmail.com' }, include: { role: true } });
+  console.log(`Admin User created: ${adminUser?.full_name} (${adminUser?.role?.role_name})`);
 
   const locationsCount = await prisma.location.count();
   console.log(`Locations created: ${locationsCount}`);

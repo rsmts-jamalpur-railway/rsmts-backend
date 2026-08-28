@@ -18,19 +18,20 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto, currentUserId: string) {
     const exists = await this.prisma.user.findUnique({
-      where: { employee_id: createUserDto.employee_id },
+      where: { email: createUserDto.email },
     });
     if (exists) {
-      throw new BadRequestException('Employee ID already exists');
+      throw new BadRequestException('Email already exists');
     }
 
     const password_hash = await bcrypt.hash(createUserDto.password, 10);
 
     const user = await this.prisma.user.create({
       data: {
-        employee_id: createUserDto.employee_id,
+        email: createUserDto.email,
         password_hash,
         full_name: createUserDto.full_name,
+        note: createUserDto.note,
         department: createUserDto.department,
         designation: createUserDto.designation,
         role_id: createUserDto.role_id,
@@ -39,7 +40,7 @@ export class UsersService {
       },
       select: {
         id: true,
-        employee_id: true,
+        email: true,
         full_name: true,
         role: true,
         is_active: true,
@@ -47,7 +48,7 @@ export class UsersService {
     });
 
     await this.audit.logAction(currentUserId, 'CREATE_USER', {
-      target_user: user.employee_id,
+      target_user: user.email,
     });
     return user;
   }
@@ -56,8 +57,9 @@ export class UsersService {
     return this.prisma.user.findMany({
       select: {
         id: true,
-        employee_id: true,
+        email: true,
         full_name: true,
+        note: true,
         department: true,
         designation: true,
         is_active: true,
@@ -73,8 +75,9 @@ export class UsersService {
       where: { id },
       select: {
         id: true,
-        employee_id: true,
+        email: true,
         full_name: true,
+        note: true,
         department: true,
         designation: true,
         is_active: true,
@@ -96,13 +99,26 @@ export class UsersService {
         ...updateUserDto,
         updated_by: currentUserId,
       },
-      select: { id: true, employee_id: true, full_name: true },
+      select: { id: true, email: true, full_name: true },
     });
 
     await this.audit.logAction(currentUserId, 'UPDATE_USER', {
-      target_user: user.employee_id,
+      target_user: user.email,
       updates: updateUserDto,
     });
     return user;
+  }
+
+  async remove(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    
+    // Check if user is trying to delete the super admin (id 1)
+    if (user.role_id === 1 && user.email.includes('admin')) {
+        throw new BadRequestException('Cannot delete the root administrator account');
+    }
+
+    await this.prisma.user.delete({ where: { id } });
+    return { success: true, message: `User ${user.email} permanently deleted` };
   }
 }

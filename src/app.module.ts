@@ -110,4 +110,4 @@ import { EventsModule } from './events/events.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

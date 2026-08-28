@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsArray, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateMovementDto {
@@ -38,7 +45,7 @@ export class CreateMovementDto {
   @ApiProperty({
     description: 'Array of base64 strings or URLs for image proofs',
     required: false,
-    type: [String]
+    type: [String],
   })
   @IsArray()
   @IsString({ each: true })
@@ -62,7 +69,8 @@ export class CreateMovementDto {
   extended_tat_reason?: string;
 
   @ApiProperty({
-    description: 'The original timestamp of the event (useful for offline sync)',
+    description:
+      'The original timestamp of the event (useful for offline sync)',
     required: false,
   })
   @IsNumber()

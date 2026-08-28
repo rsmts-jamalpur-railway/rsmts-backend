@@ -40,7 +40,11 @@ export class UploadService {
     });
   }
 
-  async attachPhotosToLatestLog(assetNumber: string, handledBy: string, fileUrls: string[]) {
+  async attachPhotosToLatestLog(
+    assetNumber: string,
+    handledBy: string,
+    fileUrls: string[],
+  ) {
     if (fileUrls.length === 0) return;
 
     const latestLog = await this.prisma.movementLog.findFirst({
@@ -58,7 +62,7 @@ export class UploadService {
     }
 
     await this.prisma.assetPhoto.createMany({
-      data: fileUrls.map(url => ({
+      data: fileUrls.map((url) => ({
         photo_url: url,
         asset_number: assetNumber,
         movement_log_id: latestLog.log_id,

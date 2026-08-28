@@ -8,7 +8,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) { }
+  ) {}
 
   async getOverview() {
     const cacheKey = 'dashboard_overview';
@@ -19,13 +19,27 @@ export class DashboardService {
     }
 
     // Calculate aggregated data
-    const totalAssets = await this.prisma.asset.count({
-      where: { is_active: true },
+    const totalActiveWagons = await this.prisma.asset.count({
+      where: { is_active: true, asset_category: 'WAGON' },
     });
-    const dispatchedToday = await this.prisma.movementLog.count({
+    
+    const totalActiveOther = await this.prisma.asset.count({
+      where: { is_active: true, asset_category: { not: 'WAGON' } },
+    });
+
+    const dispatchedTodayWagons = await this.prisma.movementLog.count({
       where: {
-        new_status: 'Workshop Out',
+        new_status: 'Dispatched',
         timestamp: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        asset: { asset_category: 'WAGON' }
+      },
+    });
+
+    const dispatchedTodayOther = await this.prisma.movementLog.count({
+      where: {
+        new_status: 'Dispatched',
+        timestamp: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        asset: { asset_category: { not: 'WAGON' } }
       },
     });
 
@@ -49,8 +63,12 @@ export class DashboardService {
     }));
 
     const data = {
-      total_active_assets: totalAssets,
-      dispatched_today: dispatchedToday,
+      total_active_assets: totalActiveWagons + totalActiveOther,
+      total_active_wagons: totalActiveWagons,
+      total_active_other: totalActiveOther,
+      dispatched_today: dispatchedTodayWagons + dispatchedTodayOther,
+      dispatched_today_wagons: dispatchedTodayWagons,
+      dispatched_today_other: dispatchedTodayOther,
       occupancy: formattedOccupancy,
       timestamp: new Date(),
     };

@@ -46,14 +46,14 @@ async function main() {
   // 2. Admin User
   let adminUserId = '';
   if (adminRole) {
-    const adminPassword = await bcrypt.hash('admin123', 10);
+    const adminPassword = await bcrypt.hash('password123', 10);
     const admin = await prisma.user.upsert({
-      where: { employee_id: 'ADMIN001' },
+      where: { email: 'mdfarhan6873@gmail.com' },
       update: {},
       create: {
-        employee_id: 'ADMIN001',
+        email: 'mdfarhan6873@gmail.com',
         password_hash: adminPassword,
-        full_name: 'System Administrator',
+        full_name: 'MD Farhan',
         department: 'IT',
         designation: 'Admin',
         role_id: adminRole.id,
@@ -65,15 +65,31 @@ async function main() {
 
   // 3. Workshop Locations
   const locations = [
-    { location_id: 'NSY', max_capacity: 50, standard_tat_hours: 24 },
-    { location_id: 'WRS-1', max_capacity: 10, standard_tat_hours: 48 },
-    { location_id: 'WRS-2', max_capacity: 15, standard_tat_hours: 48 },
-    { location_id: 'WRS-3', max_capacity: 12, standard_tat_hours: 48 },
-    { location_id: 'WRS-4', max_capacity: 10, standard_tat_hours: 48 },
-    { location_id: 'WRS-5', max_capacity: 5, standard_tat_hours: 12 },
-    { location_id: 'GIF', max_capacity: 20, standard_tat_hours: 72 },
-    { location_id: 'CRANE', max_capacity: 5, standard_tat_hours: 96 },
-    { location_id: 'OUT', max_capacity: 9999, standard_tat_hours: 0 },
+    { location_id: 'NSY', max_capacity: 50, standard_tat_hours: 24, is_parking_line: false },
+    { location_id: 'WRS-1', max_capacity: 10, standard_tat_hours: 48, is_parking_line: false },
+    { location_id: 'WRS-2', max_capacity: 15, standard_tat_hours: 48, is_parking_line: false },
+    { location_id: 'WRS-3', max_capacity: 12, standard_tat_hours: 48, is_parking_line: false },
+    { location_id: 'WRS-4', max_capacity: 10, standard_tat_hours: 48, is_parking_line: false },
+    { location_id: 'WRS-5', max_capacity: 5, standard_tat_hours: 12, is_parking_line: false },
+    { location_id: 'GIF', max_capacity: 20, standard_tat_hours: 72, is_parking_line: false },
+    { location_id: 'CRANE', max_capacity: 5, standard_tat_hours: 96, is_parking_line: false },
+    { location_id: 'OUT', max_capacity: 9999, standard_tat_hours: 0, is_parking_line: false },
+    ...[
+      'NSY Line no. 1', 'NSY Line no. 2', 'RB Line', 'MDS Line (North)', 'WRS-5 West Line (North)',
+      'Challan Line (North)', 'Crane Line', 'NSY D Line', 'DPS North Line', 'DPS Load Box',
+      'Cleaning Area A', 'Cleaning Area B', 'Cleaning Area C', 'Cleaning Area D', 'WRS-2 C/Line',
+      'MO Line', 'C-Ward (East)', 'C-Ward (West)', 'Stripping Yard', 'Meat Market Line(East)',
+      'Meat Market Line(West)', 'Old Paint Shed (East)', 'Old Paint Shed (West)', 'BST Main Line',
+      'BST Middle Line', 'BST Dug Line', 'RM Main Line', 'RM Middle Line', 'RM Dug Line',
+      'Tower Car Line', 'Nath Line', 'WC Main Line', 'WC Middle Line', 'WC Dug Line', 'New Line',
+      'Dhobighat Line', 'SSY New Line (East)', 'SSY New Line (West)', 'Steel Foundry Line',
+      'YS/WRS-3 Line', 'Sick Line', 'Bahar Line', 'SSY Bagal/Main Line', 'LTC Line',
+      'GIF Office Line', 'GIF Centre Line(North)', '20T Way', '140T Way (East)', '140T Way (West)',
+      'Trial Yard (East)', 'Trial Yard (West)', 'GIF Centre Line(South)', 'GIF Paint Shed Line(East)',
+      'GIF Paint Shed Line(West)', 'Pig Line', 'Sleeper Line', 'SSY Bank Line', 'SSY Muck Line',
+      'SSY Billet Line', 'Forge Shop Line', 'WRS-4 Line', 'WRS-5 Line (East)', 'WRS-5 West Line (South)',
+      'MDS Line (South)', 'Wheel Shop Line', 'BTPN Line', 'DPS South Line (West)', 'Challan Line(South)'
+    ].map(line => ({ location_id: line, max_capacity: 5, standard_tat_hours: 0, is_parking_line: true }))
   ];
 
   for (const loc of locations) {
@@ -93,6 +109,23 @@ async function main() {
     { key: 'ALLOW_OFFLINE_SYNC', value: 'true', description: 'Enable WatermelonDB sync' },
     { key: 'MAX_SYNC_BATCH_SIZE', value: '100', description: 'Max records per sync batch' },
     { key: 'REQUIRE_GPS_LOCATION', value: 'true', description: 'Require GPS coordinates for movement logs' },
+    { 
+      key: 'ASSET_FORM_CONFIG', 
+      value: JSON.stringify({
+        wagonTypes: ['BOXNHL', 'BCNA', 'BOBRNHS'],
+        locoTypes: ['WAG-9', 'WAP-7', 'WDG-3A'],
+        craneTypes: ['140T Crane', 'DETC'],
+        actions: ['POH', 'ROH', 'NPOH'],
+        repairCategories: ['Light', 'Medium', 'Heavy', 'Special'],
+        categoryDestinations: {
+          WAGON: ['WRS-1', 'WRS-2', 'WRS-3', 'WRS-4', 'WRS-5'],
+          LOCO: ['DPS', 'Electric Shed'],
+          CRANE: ['Crane Shop', 'Trial Yard'],
+          TOWER_CAR: ['Crane Shop', 'Tower Car Line']
+        }
+      }), 
+      description: 'Dynamic dropdown options and smart routing rules for the mobile app and dashboard' 
+    },
   ];
 
   for (const setting of defaultSettings) {
@@ -132,19 +165,40 @@ async function main() {
     const isReadyOutturn = i > 55;
 
     // Determine type and origin
-    let assetType = standardTypes[randomInt(0, standardTypes.length - 1)];
     let origin = 'REPAIR';
+    let assetCategory = 'WAGON';
+    let assetType = standardTypes[randomInt(0, standardTypes.length - 1)];
 
-    // Mix in some new manufacturing
+    // Mix in some new manufacturing, locos, cranes, tower cars
     if (i % 5 === 0) {
       origin = 'GIF';
+      assetCategory = 'WAGON';
       assetType = gifTypes[randomInt(0, gifTypes.length - 1)];
+    } else if (i % 11 === 0) {
+      origin = 'REPAIR';
+      assetCategory = 'LOCO';
+      assetType = 'LOCOMOTIVE';
     } else if (i % 12 === 0) {
       origin = 'CRANE';
-      assetType = craneTypes[randomInt(0, craneTypes.length - 1)];
+      assetCategory = 'CRANE';
+      assetType = '140T Crane';
+    } else if (i % 13 === 0) {
+      origin = 'CRANE';
+      assetCategory = 'TOWER_CAR';
+      assetType = 'Tower Car';
     }
 
-    const assetNumber = `110${randomInt(10000000, 99999999)}`;
+    // Asset Number Length Rules
+    let assetNumber = '';
+    if (assetCategory === 'WAGON') {
+      assetNumber = randomInt(10000000000, 99999999999).toString(); // 11 digits
+    } else if (assetCategory === 'LOCO') {
+      assetNumber = randomInt(10000, 99999).toString(); // 5 digits
+    } else if (assetCategory === 'CRANE') {
+      assetNumber = randomInt(146000, 999999).toString(); // 6 digits, not starting with 145
+    } else if (assetCategory === 'TOWER_CAR') {
+      assetNumber = i % 2 === 0 ? randomInt(100, 999).toString() : randomInt(100000, 999999).toString(); // 3 or 6
+    }
     const wagonSr = `SR-${randomInt(10000, 99999)}`;
 
     let currentStatus = '';
@@ -196,6 +250,7 @@ async function main() {
     const asset = await prisma.asset.create({
       data: {
         asset_number: assetNumber,
+        asset_category: assetCategory,
         wagon_sr: wagonSr,
         rly: rlys[randomInt(0, rlys.length - 1)],
         asset_type: assetType,
@@ -205,6 +260,10 @@ async function main() {
         origin: origin,
         current_status: currentStatus,
         current_location: currentLocation,
+        loco_type: assetCategory === 'LOCO' ? ['WAG-9', 'WAP-7', 'WDG-3A'][randomInt(0, 2)] : null,
+        crane_age_tag: assetCategory === 'CRANE' ? ['OLD', 'NEW'][randomInt(0, 1)] : null,
+        tc_variant: assetCategory === 'TOWER_CAR' ? (assetNumber.length === 3 ? ['M3', 'M4'][randomInt(0, 1)] : ['DETC', 'DHTC'][randomInt(0, 1)]) : null,
+        tc_zone: assetCategory === 'TOWER_CAR' ? ['ER', 'ECR'][randomInt(0, 1)] : null,
         nsy_in_date: nsy_in_date,
         shop_in_date: shop_in_date,
         fit_date: fit_date,
@@ -227,7 +286,7 @@ async function main() {
     if (i <= 5) {
       const histStart = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000));
       const histEnd = new Date(histStart.getTime() + (randomInt(5, 15) * 24 * 60 * 60 * 1000));
-      
+
       const histCycle = await prisma.repairCycle.create({
         data: {
           asset_number: assetNumber,
@@ -369,13 +428,13 @@ async function main() {
 
       // 40% chance to add a proof image to a log
       if (Math.random() < 0.4) {
-         await prisma.assetPhoto.create({
-           data: {
-             movement_log_id: createdLog.log_id,
-             asset_number: assetNumber,
-             photo_url: samplePhotos[randomInt(0, samplePhotos.length - 1)]
-           }
-         });
+        await prisma.assetPhoto.create({
+          data: {
+            movement_log_id: createdLog.log_id,
+            asset_number: assetNumber,
+            photo_url: samplePhotos[randomInt(0, samplePhotos.length - 1)]
+          }
+        });
       }
     }
   }

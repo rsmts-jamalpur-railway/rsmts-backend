@@ -30,14 +30,14 @@ export class AssetsService {
       createAssetDto.origin === 'GIF'
         ? 'GIF IN'
         : createAssetDto.origin === 'CRANE'
-        ? 'CRANE IN'
-        : 'NSY IN';
+          ? 'CRANE IN'
+          : 'NSY IN';
     const initialLocation =
       createAssetDto.origin === 'GIF'
         ? 'GIF'
         : createAssetDto.origin === 'CRANE'
-        ? 'CRANE'
-        : 'NSY';
+          ? 'CRANE'
+          : 'NSY';
 
     // Start a transaction to create asset and initial movement log
     const result = await this.prisma.$transaction(async (prisma) => {
@@ -99,7 +99,7 @@ export class AssetsService {
           asset_number: asset.asset_number,
           cycle_number: 1,
           nsy_in_date: new Date(),
-        }
+        },
       });
 
       // Create initial movement log
@@ -111,7 +111,7 @@ export class AssetsService {
           handled_by: currentUserId,
           timestamp: new Date(),
           remarks: 'Asset registered into the system',
-          repair_cycle_id: cycle.id
+          repair_cycle_id: cycle.id,
         },
       });
 
@@ -137,7 +137,7 @@ export class AssetsService {
     if (active !== 'all') {
       where.is_active = active === 'true';
     }
-    
+
     if (status) where.current_status = status;
     if (location) where.current_location = location;
 
@@ -177,19 +177,19 @@ export class AssetsService {
           include: {
             movement_logs: {
               orderBy: { timestamp: 'desc' },
-              include: { 
+              include: {
                 handler: { select: { full_name: true } },
-                photos: true
+                photos: true,
               },
-            }
-          }
+            },
+          },
         },
         movement_logs: {
           where: { repair_cycle_id: null },
           orderBy: { timestamp: 'desc' },
-          include: { 
+          include: {
             handler: { select: { full_name: true } },
-            photos: true
+            photos: true,
           },
         },
       },
@@ -221,19 +221,26 @@ export class AssetsService {
     return updated;
   }
 
-  async remove(asset_number: string, currentUserId: string) {
+  async remove(asset_number: string, currentUserId: string, isHard: boolean = false) {
     const asset = await this.prisma.asset.findUnique({
       where: { asset_number },
     });
     if (!asset) throw new NotFoundException('Asset not found');
 
-    // Soft delete
-    const deleted = await this.prisma.asset.update({
-      where: { asset_number },
-      data: { is_active: false },
-    });
-
-    await this.audit.logAction(currentUserId, 'DELETE_ASSET', { asset_number });
-    return deleted;
+    if (isHard) {
+      await this.prisma.asset.delete({
+        where: { asset_number }
+      });
+      await this.audit.logAction(currentUserId, 'HARD_DELETE_ASSET', { asset_number });
+      return { success: true, message: 'Asset permanently deleted' };
+    } else {
+      // Soft delete
+      const deleted = await this.prisma.asset.update({
+        where: { asset_number },
+        data: { is_active: false },
+      });
+      await this.audit.logAction(currentUserId, 'DELETE_ASSET', { asset_number });
+      return deleted;
+    }
   }
 }

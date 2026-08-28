@@ -10,6 +10,21 @@ export class LocationsService {
     private readonly audit: AuditService,
   ) {}
 
+  async create(data: any, currentUserId: string) {
+    const loc = await this.prisma.location.create({
+      data: {
+        location_id: data.location_id,
+        max_capacity: data.max_capacity,
+        standard_tat_hours: data.standard_tat_hours,
+      },
+    });
+
+    await this.audit.logAction(currentUserId, 'CREATE_LOCATION', {
+      location: loc.location_id,
+    });
+    return loc;
+  }
+
   findAll() {
     return this.prisma.location.findMany();
   }

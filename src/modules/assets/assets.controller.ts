@@ -85,8 +85,10 @@ export class AssetsController {
 
   @Roles('Administrator', 'Management')
   @Delete(':asset_number')
-  @ApiOperation({ summary: 'Soft delete an asset' })
-  remove(@Param('asset_number') asset_number: string, @Request() req) {
-    return this.assetsService.remove(asset_number, req.user.userId);
+  @ApiOperation({ summary: 'Soft or Hard delete an asset' })
+  @ApiQuery({ name: 'hard', required: false, type: Boolean })
+  remove(@Param('asset_number') asset_number: string, @Query('hard') hard: string, @Request() req) {
+    const isHard = hard === 'true';
+    return this.assetsService.remove(asset_number, req.user.userId, isHard);
   }
 }

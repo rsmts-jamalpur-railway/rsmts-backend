@@ -57,4 +57,16 @@ export class ReportsController {
     );
     return res.send(csvData);
   }
+
+  @Roles('Administrator', 'Management', 'SSE')
+  @Get('tat-analytics')
+  @ApiOperation({ summary: 'Get Turn Around Time analytics' })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async getTatAnalytics(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getTatAnalytics(startDate, endDate);
+  }
 }

@@ -11,7 +11,7 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Starting complex mock data seeding...');
 
-  const admin = await prisma.user.findUnique({ where: { employee_id: 'ADMIN001' } });
+  const admin = await prisma.user.findUnique({ where: { email: 'mdfarhan6873@gmail.com' } });
   if (!admin) {
     console.error('Admin user not found.');
     return;

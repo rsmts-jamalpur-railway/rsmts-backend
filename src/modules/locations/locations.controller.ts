@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Param,
   Body,
@@ -19,6 +20,13 @@ import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 @Controller('locations')
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
+
+  @Roles('Administrator')
+  @Post()
+  @ApiOperation({ summary: 'Create a new location' })
+  create(@Body() createLocationDto: any, @Request() req) {
+    return this.locationsService.create(createLocationDto, req.user.userId);
+  }
 
   @Roles(
     'Administrator',

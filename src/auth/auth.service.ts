@@ -12,15 +12,15 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { employee_id, password } = loginDto;
+    const { email, password } = loginDto;
 
     const user = await this.prisma.user.findUnique({
-      where: { employee_id },
+      where: { email },
       include: { role: true },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid employee ID or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.is_active) {
@@ -30,7 +30,7 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid employee ID or password');
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // Update last login
@@ -41,7 +41,7 @@ export class AuthService {
 
     const payload = {
       sub: user.id,
-      employee_id: user.employee_id,
+      email: user.email,
       role: user.role.role_name,
     };
 
@@ -75,7 +75,7 @@ export class AuthService {
     return {
       user: {
         id: user.id,
-        employee_id: user.employee_id,
+        email: user.email,
         full_name: user.full_name,
         role: user.role.role_name,
         department: user.department,
@@ -105,7 +105,7 @@ export class AuthService {
 
       const payload = {
         sub: decoded.sub,
-        employee_id: decoded.employee_id,
+        email: decoded.email,
         role: decoded.role,
       };
       const newAccessToken = this.jwtService.sign(payload, {
