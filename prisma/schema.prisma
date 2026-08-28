@@ -6,77 +6,211 @@ datasource db {
   provider = "postgresql"
 }
 
-model Role {
-  id        Int    @id @default(autoincrement())
-  role_name String @unique
-  users     User[]
-}
+// -----------------------------------------------------------------------------
+// CORE PLATFORM: IDENTITY & AUTHENTICATION
+// -----------------------------------------------------------------------------
 
-model User {
-  id            String    @id @default(uuid()) @db.Uuid
-  email         String    @unique
-  password_hash String
-  full_name     String
-  note          String?   @db.Text
-  department    String?
-  designation   String?
-  role_id       Int
-  role          Role      @relation(fields: [role_id], references: [id])
-  is_active     Boolean   @default(true)
-  last_login    DateTime?
-  created_by    String?   @db.Uuid
-  updated_by    String?   @db.Uuid
+model Employee {
+  id                String    @id @default(uuid()) @db.Uuid
+  employee_number   String    @unique
+  first_name        String
+  middle_name       String?
+  last_name         String?
+  date_of_joining   DateTime?
+  employment_status String    @default("ACTIVE")
 
-  audit_logs    AuditLog[]
-  movement_logs MovementLog[]
-  refresh_token RefreshToken?
-  device        Device?
+  user User?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Location {
-  location_id        String @id
-  max_capacity       Int
-  standard_tat_hours Int
-  zone               String?
-  is_parking_line    Boolean @default(false)
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  employee_id String   @unique @db.Uuid
+  employee    Employee @relation(fields: [employee_id], references: [id])
 
-  movements_from   MovementLog[] @relation("FromLocation")
-  movements_to     MovementLog[] @relation("ToLocation")
-  assets_current   Asset[]       @relation("CurrentLocation")
-  assets_allocated Asset[]       @relation("AllocatedShop")
+  assigned_location_id String?
+  assigned_location    Location? @relation("UserAssignedLocation", fields: [assigned_location_id], references: [location_id])
+
+  password_hash String
+  status        String @default("ACTIVE")
+
+  failed_login_attempts Int       @default(0)
+  locked_until          DateTime?
+  last_login_at         DateTime?
+  password_changed_at   DateTime?
+
+  identifiers UserIdentifier[]
+  sessions    Session[]
+  user_roles  UserRole[]
+
+  audit_logs    AuditLog[]
+  movement_logs MovementLog[]
+
+  repair_assessments RepairAssessment[]
+  repair_work_logs   RepairWorkLog[]
+  holds_created      RepairHold[]       @relation("HoldCreator")
+  holds_released     RepairHold[]       @relation("HoldReleaser")
+
+  mfg_work_logs ManufacturingWorkLog[]
+
+  qa_inspections   QAInspection[]
+  fit_certificates FitCertificate[]
+
+  allocations Allocation[]
+
+  reported_exceptions Exception[] @relation("ExceptionReporter")
+  assigned_exceptions Exception[] @relation("ExceptionAssignee")
+  handled_exceptions  Exception[] @relation("ExceptionHandler")
+
+  device Device?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 }
 
+model UserIdentifier {
+  id      String @id @default(uuid()) @db.Uuid
+  user_id String @db.Uuid
+  user    User   @relation(fields: [user_id], references: [id])
+
+  type             String
+  value            String
+  normalized_value String
+
+  is_verified Boolean @default(false)
+  is_primary  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, normalized_value])
+}
+
+model Session {
+  id      String @id @default(uuid()) @db.Uuid
+  user_id String @db.Uuid
+  user    User   @relation(fields: [user_id], references: [id])
+
+  session_token_hash String  @unique
+  ip_address         String?
+  user_agent         String? @db.Text
+
+  expires_at DateTime
+  revoked_at DateTime?
+
+  createdAt        DateTime @default(now())
+  last_activity_at DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// CORE PLATFORM: RBAC & SCOPING
+// -----------------------------------------------------------------------------
+
+model Role {
+  id             String  @id @default(uuid()) @db.Uuid
+  name           String  @unique
+  description    String? @db.Text
+  is_system_role Boolean @default(false)
+  is_active      Boolean @default(true)
+
+  user_roles       UserRole[]
+  role_permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  action      String  @unique
+  description String?
+
+  role_permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+}
+
+model RolePermission {
+  role_id String @db.Uuid
+  role    Role   @relation(fields: [role_id], references: [id])
+
+  permission_id String     @db.Uuid
+  permission    Permission @relation(fields: [permission_id], references: [id])
+
+  assigned_at DateTime @default(now())
+
+  @@id([role_id, permission_id])
+}
+
+model UserRole {
+  user_id String @db.Uuid
+  user    User   @relation(fields: [user_id], references: [id])
+
+  role_id String @db.Uuid
+  role    Role   @relation(fields: [role_id], references: [id])
+
+  scope_location_id String?
+  scope_location    Location? @relation("RoleScopeLocation", fields: [scope_location_id], references: [location_id])
+
+  scope_department String?
+  scope_section    String?
+
+  assigned_by String?  @db.Uuid
+  assigned_at DateTime @default(now())
+
+  @@id([user_id, role_id])
+}
+
+// -----------------------------------------------------------------------------
+// CORE PLATFORM: MASTERS
+// -----------------------------------------------------------------------------
+
+model Location {
+  location_id   String  @id
+  location_type String
+  max_capacity  Int
+  zone          String?
+
+  movements_from       MovementLog[]        @relation("FromLocation")
+  movements_to         MovementLog[]        @relation("ToLocation")
+  assets_current       Asset[]              @relation("CurrentLocation")
+  assets_allocated     Asset[]              @relation("AllocatedShop")
+  manufacturing_orders ManufacturingOrder[] @relation("BuiltByShop")
+  scoped_user_roles    UserRole[]           @relation("RoleScopeLocation")
+  assigned_users       User[]               @relation("UserAssignedLocation")
+  allocations_target   Allocation[]
+}
+
+model AssetCategoryMaster {
+  id                   String  @id
+  category             String
+  subtype              String
+  id_length            Int?
+  requires_check_digit Boolean @default(false)
+
+  assets               Asset[]
+  manufacturing_stages ManufacturingStageMaster[]
+}
+
+model RepairCategoryMaster {
+  id                 String        @id
+  standard_tat_hours Int
+  repair_cycles      RepairCycle[]
+}
+
+// -----------------------------------------------------------------------------
+// CORE PLATFORM: ASSETS
+// -----------------------------------------------------------------------------
+
 model Asset {
-  id             String @id @default(uuid()) @db.Uuid
-  asset_number   String @unique
-  asset_category String @default("WAGON") // WAGON, LOCO, CRANE, TOWER_CAR
-  asset_type     String
-  origin         String
+  id           String @id @default(uuid()) @db.Uuid
+  asset_number String @unique
 
-  // Wagon Specific
-  wagon_sr     String?
-  rly          String?
-  mod          String?
-  built_year   Int?
-  action       String?
-
-  // Loco Specific
-  loco_type    String?
-
-  // Crane Specific
-  crane_age_tag String?
-
-  // Tower Car Specific
-  tc_variant   String?
-  tc_zone      String?
-
-  nsy_in_date  DateTime?
-  shop_in_date DateTime?
-  fit_date     DateTime?
-  nsy_out_date DateTime?
+  category_id String
+  category    AssetCategoryMaster @relation(fields: [category_id], references: [id])
 
   current_location String?
   location         Location? @relation("CurrentLocation", fields: [current_location], references: [location_id])
@@ -86,13 +220,16 @@ model Asset {
   allocated_shop String?
   allocatedTo    Location? @relation("AllocatedShop", fields: [allocated_shop], references: [location_id])
 
+  is_active     Boolean @default(true)
   custom_fields Json?
 
-  is_active Boolean @default(true)
-
-  repair_cycles RepairCycle[]
-  movement_logs MovementLog[]
-  photos        AssetPhoto[]
+  repair_cycles        RepairCycle[]
+  manufacturing_orders ManufacturingOrder[]
+  qa_inspections       QAInspection[]
+  allocations          Allocation[]
+  movements            MovementLog[]
+  exceptions           Exception[]
+  photos               AssetPhoto[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,31 +237,251 @@ model Asset {
   @@index([current_status, current_location])
 }
 
-model RepairCycle {
-  id           String @id @default(uuid()) @db.Uuid
-  asset_number String
-  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+// -----------------------------------------------------------------------------
+// YARD & ALLOCATION OPERATIONS
+// -----------------------------------------------------------------------------
 
-  cycle_number Int
+model Allocation {
+  id       String @id @default(uuid()) @db.Uuid
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
 
-  nsy_in_date  DateTime?
-  shop_in_date DateTime?
-  fit_date     DateTime?
-  nsy_out_date DateTime?
+  target_location String
+  location        Location @relation(fields: [target_location], references: [location_id])
 
-  tat_days             Int?
-  estimated_tat_days   Int?
-  extended_tat_reason  String? @db.Text
-  movement_logs MovementLog[]
+  allocated_by String @db.Uuid
+  user         User   @relation(fields: [allocated_by], references: [id])
+
+  status String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+// -----------------------------------------------------------------------------
+// REPAIR OPERATIONS
+// -----------------------------------------------------------------------------
+
+model RepairCycle {
+  cycle_id String @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
+
+  repair_category_id String
+  repair_category    RepairCategoryMaster @relation(fields: [repair_category_id], references: [id])
+
+  estimated_tat_hours Int?
+  actual_tat_hours    Int?
+
+  started_at   DateTime?
+  completed_at DateTime?
+
+  status String
+
+  assessments    RepairAssessment[]
+  holds          RepairHold[]
+  work_logs      RepairWorkLog[]
+  qa_inspections QAInspection[]
+  movement_logs  MovementLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RepairAssessment {
+  id              String      @id @default(uuid()) @db.Uuid
+  repair_cycle_id String      @db.Uuid
+  repair_cycle    RepairCycle @relation(fields: [repair_cycle_id], references: [cycle_id])
+
+  assessed_by String @db.Uuid
+  user        User   @relation(fields: [assessed_by], references: [id])
+
+  remarks String @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+model RepairHold {
+  id              String      @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
+  repair_cycle_id String      @db.Uuid
+  repair_cycle    RepairCycle @relation(fields: [repair_cycle_id], references: [cycle_id])
+
+  reason  String
+  remarks String? @db.Text
+
+  started_at  DateTime  @default(now())
+  released_at DateTime?
+
+  created_by String @db.Uuid
+  creator    User   @relation("HoldCreator", fields: [created_by], references: [id])
+
+  released_by String? @db.Uuid
+  releaser    User?   @relation("HoldReleaser", fields: [released_by], references: [id])
+}
+
+model RepairWorkLog {
+  id              String      @id @default(uuid()) @db.Uuid
+  repair_cycle_id String      @db.Uuid
+  repair_cycle    RepairCycle @relation(fields: [repair_cycle_id], references: [cycle_id])
+
+  description String
+
+  performed_by String @db.Uuid
+  user         User   @relation(fields: [performed_by], references: [id])
+
+  timestamp DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// MANUFACTURING OPERATIONS
+// -----------------------------------------------------------------------------
+
+model ManufacturingStageMaster {
+  stage_id              String              @id
+  asset_category_id     String
+  asset_category        AssetCategoryMaster @relation(fields: [asset_category_id], references: [id])
+  stage_sequence_number Int
+  stage_name            String
+
+  work_logs            ManufacturingWorkLog[]
+  manufacturing_orders ManufacturingOrder[]   @relation("CurrentStage")
+}
+
+model ManufacturingOrder {
+  order_id String @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
+
+  production_type String
+  built_by_shop   String
+  shop            Location @relation("BuiltByShop", fields: [built_by_shop], references: [location_id])
+
+  started_at   DateTime?
+  completed_at DateTime?
+
+  status String
+
+  current_stage_id String?
+  current_stage    ManufacturingStageMaster? @relation("CurrentStage", fields: [current_stage_id], references: [stage_id])
+
+  work_logs      ManufacturingWorkLog[]
+  qa_inspections QAInspection[]
+  movement_logs  MovementLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ManufacturingWorkLog {
+  id       String             @id @default(uuid()) @db.Uuid
+  order_id String             @db.Uuid
+  order    ManufacturingOrder @relation(fields: [order_id], references: [order_id])
+
+  stage_id String
+  stage    ManufacturingStageMaster @relation(fields: [stage_id], references: [stage_id])
+
+  completed_by String @db.Uuid
+  user         User   @relation(fields: [completed_by], references: [id])
+
+  timestamp DateTime @default(now())
+}
+
+// -----------------------------------------------------------------------------
+// SHARED QA DOMAIN
+// -----------------------------------------------------------------------------
+
+model QAInspection {
+  id       String @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
+
+  repair_cycle_id String?      @db.Uuid
+  repair_cycle    RepairCycle? @relation(fields: [repair_cycle_id], references: [cycle_id])
+
+  manufacturing_order_id String?             @db.Uuid
+  manufacturing_order    ManufacturingOrder? @relation(fields: [manufacturing_order_id], references: [order_id])
+
+  inspector_id String @db.Uuid
+  inspector    User   @relation(fields: [inspector_id], references: [id])
+
+  inspection_type String
+  result          String
+
+  inspected_at DateTime @default(now())
+  remarks      String?  @db.Text
+
+  test_results QATestResult[]
+  certificates FitCertificate[]
+
+  createdAt DateTime @default(now())
+}
+
+model QATestResult {
+  id            String       @id @default(uuid()) @db.Uuid
+  inspection_id String       @db.Uuid
+  inspection    QAInspection @relation(fields: [inspection_id], references: [id])
+
+  test_name String
+  value     String?
+  passed    Boolean
+}
+
+model FitCertificate {
+  id            String       @id @default(uuid()) @db.Uuid
+  inspection_id String       @db.Uuid
+  inspection    QAInspection @relation(fields: [inspection_id], references: [id])
+
+  certificate_number String   @unique
+  issued_at          DateTime @default(now())
+
+  issued_by String @db.Uuid
+  issuer    User   @relation(fields: [issued_by], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// EXCEPTION DOMAIN (FIRST-CLASS)
+// -----------------------------------------------------------------------------
+
+model Exception {
+  id       String @id @default(uuid()) @db.Uuid
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
+
+  type     String
+  status   String
+  severity String
+
+  reported_by String @db.Uuid
+  reporter    User   @relation("ExceptionReporter", fields: [reported_by], references: [id])
+
+  assigned_to String? @db.Uuid
+  assignee    User?   @relation("ExceptionAssignee", fields: [assigned_to], references: [id])
+
+  reason String @db.Text
+
+  resolved_at DateTime?
+  resolved_by String?   @db.Uuid
+  resolver    User?     @relation("ExceptionHandler", fields: [resolved_by], references: [id])
+
+  resolution String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// HISTORY & AUDIT
+// -----------------------------------------------------------------------------
+
 model MovementLog {
-  log_id       String @id @default(uuid()) @db.Uuid
-  asset_number String
-  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+  log_id   String @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
 
   from_location String?
   fromLoc       Location? @relation("FromLocation", fields: [from_location], references: [location_id])
@@ -135,17 +492,18 @@ model MovementLog {
   previous_status String?
   new_status      String
 
-  repair_cycle_id String?      @db.Uuid
-  repair_cycle    RepairCycle? @relation(fields: [repair_cycle_id], references: [id])
+  repair_cycle_id        String?             @db.Uuid
+  repair_cycle           RepairCycle?        @relation(fields: [repair_cycle_id], references: [cycle_id])
+  manufacturing_order_id String?             @db.Uuid
+  manufacturing_order    ManufacturingOrder? @relation(fields: [manufacturing_order_id], references: [order_id])
 
   handled_by String @db.Uuid
   handler    User   @relation(fields: [handled_by], references: [id])
 
-  timestamp        DateTime
-  sync_status      String   @default("Synced") // Pending, Syncing, Synced, Failed, Conflict
-  is_offline_entry Boolean  @default(false)
-  remarks          String?  @db.Text
-  device_id        String?
+  timestamp   DateTime
+  sync_status String   @default("Synced")
+  device_id   String?
+  remarks     String?  @db.Text
 
   photos AssetPhoto[]
 
@@ -156,9 +514,9 @@ model MovementLog {
 }
 
 model AssetPhoto {
-  id           String @id @default(uuid()) @db.Uuid
-  asset_number String
-  asset        Asset  @relation(fields: [asset_number], references: [asset_number])
+  id       String @id @default(uuid()) @db.Uuid
+  asset_id String @db.Uuid
+  asset    Asset  @relation(fields: [asset_id], references: [id])
 
   movement_log_id String?      @db.Uuid
   movement_log    MovementLog? @relation(fields: [movement_log_id], references: [log_id])
@@ -185,16 +543,6 @@ model Notification {
   message String
   type    String
   is_read Boolean @default(false)
-
-  createdAt DateTime @default(now())
-}
-
-model RefreshToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  user_id   String   @unique @db.Uuid
-  user      User     @relation(fields: [user_id], references: [id])
-  token     String   @unique
-  expiresAt DateTime
 
   createdAt DateTime @default(now())
 }

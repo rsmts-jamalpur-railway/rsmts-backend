@@ -20,17 +20,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: any) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { role: true },
+      include: { 
+        employee: true,
+        user_roles: { include: { role: true } }
+      },
     });
 
-    if (!user || !user.is_active) {
+    if (!user || user.status !== 'ACTIVE') {
       throw new UnauthorizedException('User is inactive or not found');
     }
 
     return {
       userId: user.id,
-      email: user.email,
-      role: user.role.role_name,
+      employeeId: user.employee.employee_number,
+      roles: user.user_roles.map(ur => ur.role.name),
+      assigned_location_id: user.assigned_location_id,
     };
   }
 }

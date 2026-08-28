@@ -28,27 +28,19 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login using Email and Password' })
+  @ApiOperation({ summary: 'Login using Employee ID, Email, or Mobile' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
-  @Public()
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Refresh access token' })
-  async refresh(@Body('refresh_token') refreshToken: string) {
-    return this.authService.refresh(refreshToken);
-  }
-
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('Administrator', 'Management')
+  @Roles('SYSTEM_ADMIN', 'MANAGEMENT')
   @Get('me')
   @ApiOperation({
-    summary: 'Get current user profile (Requires Admin or Management role)',
+    summary: 'Get current user profile',
   })
   getProfile(@Request() req) {
     return req.user;

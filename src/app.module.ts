@@ -12,21 +12,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CoreModule } from './core/core.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
-import { WagonValidationModule } from './shared/wagon-validation/wagon-validation.module';
-import { UploadModule } from './shared/upload/upload.module';
-import { AuditModule } from './shared/audit/audit.module';
-import { NotificationModule } from './shared/notification/notification.module';
-import { UsersModule } from './modules/users/users.module';
-import { RolesModule } from './modules/roles/roles.module';
-import { LocationsModule } from './modules/locations/locations.module';
-import { SettingsModule } from './modules/settings/settings.module';
-import { AssetsModule } from './modules/assets/assets.module';
-import { StateMachineModule } from './modules/state-machine/state-machine.module';
-import { MovementModule } from './modules/movement/movement.module';
-import { OfflineSyncModule } from './modules/offline-sync/offline-sync.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { ReportsModule } from './modules/reports/reports.module';
-import { EventsModule } from './events/events.module';
+import { MovementsModule } from './movements/movements.module';
+import { AssetsModule } from './assets/assets.module';
+import { ExceptionsModule } from './exceptions/exceptions.module';
+import { YardModule } from './yard/yard.module';
+import { RepairModule } from './repair/repair.module';
+import { ManufacturingModule } from './manufacturing/manufacturing.module';
+import { QaModule } from './qa/qa.module';
 
 @Module({
   imports: [
@@ -85,21 +77,13 @@ import { EventsModule } from './events/events.module';
     CoreModule,
     HealthModule,
     AuthModule,
-    WagonValidationModule,
-    UploadModule,
-    AuditModule,
-    NotificationModule,
-    UsersModule,
-    RolesModule,
-    LocationsModule,
-    SettingsModule,
+    MovementsModule,
     AssetsModule,
-    StateMachineModule,
-    MovementModule,
-    OfflineSyncModule,
-    DashboardModule,
-    ReportsModule,
-    EventsModule,
+    ExceptionsModule,
+    YardModule,
+    RepairModule,
+    ManufacturingModule,
+    QaModule,
   ],
   controllers: [AppController],
   providers: [

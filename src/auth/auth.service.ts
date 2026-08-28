@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import { argon2id } from 'hash-wasm';
 import { LoginDto } from './dto/login.dto';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -12,74 +13,84 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto) {
-    const { email, password } = loginDto;
+    const { identifier, password } = loginDto;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
+    // 1. Find user via any of the identifiers (Employee ID, Email, Mobile)
+    const userIdentifier = await this.prisma.userIdentifier.findFirst({
+      where: {
+        normalized_value: identifier.toLowerCase().trim(),
+      },
+      include: {
+        user: {
+          include: {
+            employee: true,
+            user_roles: {
+              include: { role: true }
+            }
+          }
+        }
+      }
     });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (!userIdentifier || !userIdentifier.user) {
+      throw new UnauthorizedException('Invalid identifier or password');
     }
 
-    if (!user.is_active) {
-      throw new UnauthorizedException('User account is inactive');
+    const user = userIdentifier.user;
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('User account is inactive or locked');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    // 2. Verify Argon2id password
+    const { argon2Verify } = await import('hash-wasm');
+    const isPasswordValid = await argon2Verify({
+      password,
+      hash: user.password_hash
+    });
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid identifier or password');
     }
 
     // Update last login
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { last_login: new Date() },
+      data: { last_login_at: new Date() },
     });
 
     const payload = {
       sub: user.id,
-      email: user.email,
-      role: user.role.role_name,
+      employee_id: user.employee.employee_number,
+      roles: user.user_roles.map(ur => ur.role.name),
+      assigned_location_id: user.assigned_location_id,
     };
 
-    // Generate tokens
     const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
-    // Store refresh token in db
-    await this.prisma.refreshToken.upsert({
-      where: { user_id: user.id },
-      update: {
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      create: {
+    // Store in Session table
+    await this.prisma.session.create({
+      data: {
         user_id: user.id,
-        token: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+        session_token_hash: refreshToken, // Should hash this in prod
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      }
     });
 
-    // Log the audit
     await this.prisma.auditLog.create({
       data: {
         user_id: user.id,
         action: 'LOGIN',
-        details: { message: 'User logged in successfully' },
+        details: { message: `User logged in via ${userIdentifier.type}` },
       },
     });
 
     return {
       user: {
         id: user.id,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role.role_name,
-        department: user.department,
-        designation: user.designation,
+        name: `${user.employee.first_name} ${user.employee.last_name || ''}`.trim(),
+        roles: payload.roles,
       },
       tokens: {
         access_token: accessToken,
@@ -88,35 +99,15 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string) {
-    try {
-      const decoded = this.jwtService.verify(refreshToken);
-      const storedToken = await this.prisma.refreshToken.findUnique({
-        where: { user_id: decoded.sub },
-      });
-
-      if (
-        !storedToken ||
-        storedToken.token !== refreshToken ||
-        storedToken.expiresAt < new Date()
-      ) {
-        throw new UnauthorizedException('Invalid or expired refresh token');
+  async logout(userId: string, refreshToken: string) {
+    await this.prisma.session.updateMany({
+      where: {
+        user_id: userId,
+        session_token_hash: refreshToken,
+      },
+      data: {
+        revoked_at: new Date()
       }
-
-      const payload = {
-        sub: decoded.sub,
-        email: decoded.email,
-        role: decoded.role,
-      };
-      const newAccessToken = this.jwtService.sign(payload, {
-        expiresIn: '15m',
-      });
-
-      return {
-        access_token: newAccessToken,
-      };
-    } catch (e) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
-    }
+    });
   }
 }
