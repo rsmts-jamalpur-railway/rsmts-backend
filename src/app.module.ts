@@ -19,6 +19,8 @@ import { YardModule } from './yard/yard.module';
 import { RepairModule } from './repair/repair.module';
 import { ManufacturingModule } from './manufacturing/manufacturing.module';
 import { QaModule } from './qa/qa.module';
+import { SyncModule } from './sync/sync.module';
+import { SyncEventModule } from './sync/sync-event.module';
 
 @Module({
   imports: [
@@ -84,6 +86,8 @@ import { QaModule } from './qa/qa.module';
     RepairModule,
     ManufacturingModule,
     QaModule,
+    SyncEventModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [

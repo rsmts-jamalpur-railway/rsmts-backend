@@ -2,6 +2,8 @@ import { Injectable, Logger, BadRequestException, ConflictException, ForbiddenEx
 import { PrismaService } from '../prisma/prisma.service';
 import { MovementsService } from '../movements/movements.service';
 import { ManufacturingWorkflow } from './manufacturing.workflow';
+import { SyncEventService } from '../sync/sync-event.service';
+import { SyncEntity, SyncAction } from '@prisma/client';
 
 export class StartManufacturingDto {
   client_operation_id: string;
@@ -21,7 +23,8 @@ export class ManufacturingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly movementsService: MovementsService
+    private readonly movementsService: MovementsService,
+    private readonly syncEventService: SyncEventService,
   ) {}
 
   async startManufacturing(userId: string, assignedLocationId: string | undefined, data: StartManufacturingDto) {
@@ -87,7 +90,7 @@ export class ManufacturingService {
         }
       });
 
-      await tx.movementLog.create({
+      const movement = await tx.movementLog.create({
         data: {
           client_operation_id: data.client_operation_id + '-move',
           asset_id: asset.id,
@@ -99,6 +102,10 @@ export class ManufacturingService {
           timestamp: new Date()
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.CREATED, asset.id, asset);
+      await this.syncEventService.record(tx, SyncEntity.MANUFACTURING_ORDER, SyncAction.CREATED, order.order_id, order);
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       this.logger.log(`Started manufacturing order ${order.order_id} for asset ${asset.asset_number}`);
       return order;
@@ -145,7 +152,7 @@ export class ManufacturingService {
         where: { id: order.asset_id },
         data: {
           current_location: 'YARD',
-          current_status: 'AWAITING_DISPATCH'
+          current_status: 'PENDING_QA'
         }
       });
 
@@ -163,6 +170,10 @@ export class ManufacturingService {
           timestamp: new Date()
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.MANUFACTURING_ORDER, SyncAction.UPDATED, data.order_id, { status: 'COMPLETED', completed_at: new Date() });
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, order.asset_id, { current_location: 'YARD', current_status: 'PENDING_QA' });
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       this.logger.log(`Closed manufacturing order ${order.order_id}`);
       return movement;

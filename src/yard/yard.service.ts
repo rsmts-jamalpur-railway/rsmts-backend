@@ -2,6 +2,8 @@ import { Injectable, Logger, ConflictException, ForbiddenException } from '@nest
 import { PrismaService } from '../prisma/prisma.service';
 import { MovementsService } from '../movements/movements.service';
 import { YardWorkflow } from './yard.workflow';
+import { SyncEventService } from '../sync/sync-event.service';
+import { SyncEntity, SyncAction } from '@prisma/client';
 
 export class IntakeAssetDto {
   client_operation_id: string;
@@ -16,13 +18,27 @@ export class DispatchAssetDto {
   to_railway: string;
 }
 
+export class AllocateAssetDto {
+  client_operation_id: string;
+  asset_id?: string;
+  asset_number?: string;
+  shop_id: string;
+}
+
+export class CancelIntakeDto {
+  client_operation_id: string;
+  asset_id?: string;
+  asset_number?: string;
+}
+
 @Injectable()
 export class YardService {
   private readonly logger = new Logger(YardService.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly movementsService: MovementsService
+    private readonly movementsService: MovementsService,
+    private readonly syncEventService: SyncEventService,
   ) {}
 
   async intakeAsset(userId: string, assignedLocationId: string | undefined, data: IntakeAssetDto) {
@@ -59,6 +75,7 @@ export class YardService {
             current_status: 'RECEIVED_IN_YARD'
           }
         });
+        await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.CREATED, asset.id, asset);
       } else {
         asset = await tx.asset.update({
           where: { id: asset.id },
@@ -67,6 +84,7 @@ export class YardService {
             current_status: 'RECEIVED_IN_YARD'
           }
         });
+        await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, asset.id, asset);
       }
 
       // 3. Movement Log (with client_operation_id)
@@ -83,6 +101,8 @@ export class YardService {
           timestamp: new Date()
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       this.logger.log(`Intake completed for ${data.asset_number}`);
       return movement;
@@ -125,6 +145,8 @@ export class YardService {
         }
       });
 
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+
       // 3. Movement Log
       const movement = await tx.movementLog.create({
         data: {
@@ -140,7 +162,104 @@ export class YardService {
         }
       });
 
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
+
       this.logger.log(`Dispatch completed for ${data.asset_number}`);
+      return movement;
+    });
+  }
+
+  async allocateAsset(userId: string, data: AllocateAssetDto) {
+    return await this.prisma.$transaction(async (tx) => {
+      const existingMovement = await tx.movementLog.findUnique({
+        where: { client_operation_id: data.client_operation_id }
+      });
+      if (existingMovement) {
+        return { message: 'Idempotent success', log_id: existingMovement.log_id };
+      }
+
+      const asset = await tx.asset.findFirst({
+        where: {
+          OR: [
+            { id: data.asset_id },
+            { asset_number: data.asset_number }
+          ]
+        }
+      });
+
+      if (!asset) throw new ConflictException('Asset not found');
+
+      const updatedAsset = await tx.asset.update({
+        where: { id: asset.id },
+        data: {
+          current_location: data.shop_id,
+          current_status: 'Allocated'
+        }
+      });
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+
+      const movement = await tx.movementLog.create({
+        data: {
+          client_operation_id: data.client_operation_id,
+          asset_id: asset.id,
+          from_location: 'YARD',
+          to_location: data.shop_id,
+          previous_status: asset.current_status,
+          new_status: 'Allocated',
+          handled_by: userId,
+          remarks: `Allocated to ${data.shop_id}`,
+          timestamp: new Date()
+        }
+      });
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
+
+      return movement;
+    });
+  }
+
+  async cancelIntake(userId: string, data: CancelIntakeDto) {
+    return await this.prisma.$transaction(async (tx) => {
+      const existingMovement = await tx.movementLog.findUnique({
+        where: { client_operation_id: data.client_operation_id }
+      });
+      if (existingMovement) {
+        return { message: 'Idempotent success', log_id: existingMovement.log_id };
+      }
+
+      const asset = await tx.asset.findFirst({
+        where: {
+          OR: [
+            { id: data.asset_id },
+            { asset_number: data.asset_number }
+          ]
+        }
+      });
+
+      if (!asset) throw new ConflictException('Asset not found');
+
+      const updatedAsset = await tx.asset.update({
+        where: { id: asset.id },
+        data: {
+          current_status: 'Cancelled Entry'
+        }
+      });
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+
+      const movement = await tx.movementLog.create({
+        data: {
+          client_operation_id: data.client_operation_id,
+          asset_id: asset.id,
+          from_location: 'YARD',
+          to_location: 'YARD',
+          previous_status: asset.current_status,
+          new_status: 'Cancelled Entry',
+          handled_by: userId,
+          remarks: `Entry cancelled by Yard Master`,
+          timestamp: new Date()
+        }
+      });
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
+
       return movement;
     });
   }

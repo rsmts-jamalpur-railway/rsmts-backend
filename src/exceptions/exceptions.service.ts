@@ -1,8 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SyncEventService } from '../sync/sync-event.service';
+import { SyncEntity, SyncAction } from '@prisma/client';
 
 export class RaiseExceptionDto {
-  asset_id: string;
+  client_operation_id: string;
+  asset_id?: string;
+  asset_number?: string;
   type: string;
   severity: string;
   reason: string;
@@ -16,47 +20,81 @@ export class ResolveExceptionDto {
 export class ExceptionsService {
   private readonly logger = new Logger(ExceptionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly syncEventService: SyncEventService,
+  ) {}
 
-  async raiseException(userId: string, data: RaiseExceptionDto) {
-    const exception = await this.prisma.exception.create({
-      data: {
-        asset_id: data.asset_id,
-        type: data.type,
-        status: 'OPEN',
-        severity: data.severity,
-        reason: data.reason,
-        reported_by: userId,
+  async reportException(userId: string, data: RaiseExceptionDto) {
+    return await this.prisma.$transaction(async (tx) => {
+      // Idempotency check
+      const existing = await tx.exception.findFirst({
+        where: { client_operation_id: data.client_operation_id }
+      });
+      if (existing) {
+        return { message: 'Idempotent success', exception_id: existing.id };
       }
+
+      // Reconcile asset identity
+      let asset = data.asset_id ? await tx.asset.findUnique({ where: { id: data.asset_id } }) : null;
+      if (!asset && data.asset_number) {
+        asset = await tx.asset.findUnique({ where: { asset_number: data.asset_number } });
+      }
+      if (!asset) {
+        throw new NotFoundException('Asset not found for exception reporting.');
+      }
+
+      const exception = await tx.exception.create({
+        data: {
+          client_operation_id: data.client_operation_id,
+          asset_id: asset.id,
+          type: data.type,
+          status: 'OPEN',
+          severity: data.severity,
+          reason: data.reason,
+          reported_by: userId,
+        }
+      });
+
+      const updatedAsset = await tx.asset.update({
+        where: { id: asset.id },
+        data: {
+          current_status: 'EXCEPTION_LOGGED'
+        }
+      });
+
+      await this.syncEventService.record(tx, SyncEntity.EXCEPTION, SyncAction.CREATED, exception.id, exception);
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+
+      this.logger.log(`Reported exception ${exception.id} for asset ${asset.asset_number}`);
+      return { exception_id: exception.id, asset_id: asset.id, status: 'SUCCESS' };
     });
-
-    // We do NOT mutate the asset's current_status! 
-    // The asset remains in 'REPAIR' or 'ALLOCATED' etc, but now it has an active Exception.
-
-    this.logger.log(`Raised exception ${exception.id} for asset ${data.asset_id}`);
-    return exception;
   }
 
   async resolveException(userId: string, exceptionId: string, data: ResolveExceptionDto) {
-    const exception = await this.prisma.exception.findUnique({
-      where: { id: exceptionId }
-    });
+    return await this.prisma.$transaction(async (tx) => {
+      const exception = await tx.exception.findUnique({
+        where: { id: exceptionId }
+      });
 
-    if (!exception) {
-      throw new NotFoundException(`Exception ${exceptionId} not found.`);
-    }
-
-    const resolved = await this.prisma.exception.update({
-      where: { id: exceptionId },
-      data: {
-        status: 'RESOLVED',
-        resolution: data.resolution,
-        resolved_at: new Date(),
-        resolved_by: userId
+      if (!exception) {
+        throw new NotFoundException(`Exception ${exceptionId} not found.`);
       }
-    });
 
-    this.logger.log(`Resolved exception ${exceptionId}`);
-    return resolved;
+      const resolved = await tx.exception.update({
+        where: { id: exceptionId },
+        data: {
+          status: 'RESOLVED',
+          resolution: data.resolution,
+          resolved_at: new Date(),
+          resolved_by: userId
+        }
+      });
+
+      await this.syncEventService.record(tx, SyncEntity.EXCEPTION, SyncAction.UPDATED, resolved.id, resolved);
+
+      this.logger.log(`Resolved exception ${exceptionId}`);
+      return resolved;
+    });
   }
 }

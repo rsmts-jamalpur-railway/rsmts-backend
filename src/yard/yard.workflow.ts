@@ -8,8 +8,8 @@ export class YardWorkflow {
   }
 
   static validateDispatch(currentStatus: string, openExceptionsCount: number) {
-    if (currentStatus !== 'AWAITING_DISPATCH') {
-      throw new BadRequestException(`Asset cannot be dispatched. Current status is ${currentStatus}, expected AWAITING_DISPATCH.`);
+    if (currentStatus !== 'AWAITING_DISPATCH' && currentStatus !== 'FIT') {
+      throw new BadRequestException(`Asset cannot be dispatched. Current status is ${currentStatus}, expected AWAITING_DISPATCH or FIT.`);
     }
     if (openExceptionsCount > 0) {
       throw new BadRequestException('Asset cannot be dispatched with open exceptions.');

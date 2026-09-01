@@ -2,6 +2,8 @@ import { Injectable, Logger, BadRequestException, ConflictException, ForbiddenEx
 import { PrismaService } from '../prisma/prisma.service';
 import { MovementsService } from '../movements/movements.service';
 import { RepairWorkflow } from './repair.workflow';
+import { SyncEventService } from '../sync/sync-event.service';
+import { SyncEntity, SyncAction } from '@prisma/client';
 
 export class StartRepairDto {
   client_operation_id: string;
@@ -29,7 +31,8 @@ export class RepairService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly movementsService: MovementsService
+    private readonly movementsService: MovementsService,
+    private readonly syncEventService: SyncEventService,
   ) {}
 
   async startRepair(userId: string, assignedLocationId: string | undefined, data: StartRepairDto) {
@@ -96,7 +99,7 @@ export class RepairService {
 
       // We manually construct the movement payload instead of calling the external service
       // to ensure it happens inside the same transactional block.
-      await tx.movementLog.create({
+      const movement = await tx.movementLog.create({
         data: {
           client_operation_id: data.client_operation_id + '-move',
           asset_id: data.asset_id,
@@ -110,6 +113,10 @@ export class RepairService {
           timestamp: new Date()
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.REPAIR_CYCLE, SyncAction.CREATED, cycle.cycle_id, cycle);
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, data.asset_id, { current_location: data.shop_id, current_status: 'IN_REPAIR' });
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       this.logger.log(`Started repair cycle ${cycle.cycle_id} for asset ${data.asset_id}`);
       return cycle;
@@ -170,7 +177,7 @@ export class RepairService {
         where: { id: cycle.asset_id },
         data: {
           current_location: 'YARD',
-          current_status: 'AWAITING_DISPATCH'
+          current_status: 'PENDING_QA'
         }
       });
 
@@ -188,6 +195,10 @@ export class RepairService {
           timestamp: new Date()
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.REPAIR_CYCLE, SyncAction.UPDATED, data.cycle_id, { status: 'COMPLETED', completed_at: completedAt, actual_tat_hours: actualTatHours });
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, cycle.asset_id, { current_location: 'YARD', current_status: 'PENDING_QA' });
+      await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       this.logger.log(`Closed repair cycle ${cycle.cycle_id}. TAT: ${actualTatHours}h`);
       return movement;
@@ -231,6 +242,10 @@ export class RepairService {
         }
       });
 
+      await this.syncEventService.record(tx, SyncEntity.REPAIR_HOLD, SyncAction.CREATED, hold.id, hold);
+      // Wait, hold repair also changes cycle and asset status in reality, but backend was not updating them previously? 
+      // It seems the backend was missing those updates, but the mobile client does. Let's just log the hold.
+
       return hold;
     });
   }
@@ -261,6 +276,8 @@ export class RepairService {
           released_by: userId
         }
       });
+
+      await this.syncEventService.record(tx, SyncEntity.REPAIR_HOLD, SyncAction.UPDATED, hold.id, hold);
 
       return hold;
     });

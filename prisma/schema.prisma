@@ -448,6 +448,7 @@ model FitCertificate {
 
 model Exception {
   id       String @id @default(uuid()) @db.Uuid
+  client_operation_id String? @unique
   asset_id String @db.Uuid
   asset    Asset  @relation(fields: [asset_id], references: [id])
 
@@ -566,4 +567,35 @@ model Setting {
   description String?
 
   updatedAt DateTime @updatedAt
+}
+
+enum SyncEntity {
+  ASSET
+  LOCATION
+  REPAIR_CYCLE
+  REPAIR_HOLD
+  MANUFACTURING_ORDER
+  QA_INSPECTION
+  FIT_CERTIFICATE
+  EXCEPTION
+  MOVEMENT_LOG
+  USER
+}
+
+enum SyncAction {
+  CREATED
+  UPDATED
+  DELETED
+}
+
+model SyncEvent {
+  server_revision BigInt     @id @default(autoincrement())
+  entity_type     SyncEntity
+  record_id       String     @db.Uuid
+  action          SyncAction
+  payload         Json
+  created_at      DateTime   @default(now())
+
+  @@index([server_revision])
+  @@index([entity_type, record_id])
 }

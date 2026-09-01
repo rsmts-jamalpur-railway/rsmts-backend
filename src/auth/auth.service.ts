@@ -91,6 +91,7 @@ export class AuthService {
         id: user.id,
         name: `${user.employee.first_name} ${user.employee.last_name || ''}`.trim(),
         roles: payload.roles,
+        assigned_location_id: user.assigned_location_id,
       },
       tokens: {
         access_token: accessToken,
