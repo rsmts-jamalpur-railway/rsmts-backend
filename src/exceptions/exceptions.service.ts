@@ -2,17 +2,37 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SyncEventService } from '../sync/sync-event.service';
 import { SyncEntity, SyncAction } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class RaiseExceptionDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsOptional()
+  @IsString()
   asset_id?: string;
+
+  @IsOptional()
+  @IsString()
   asset_number?: string;
+
+  @IsString()
+  @IsNotEmpty()
   type: string;
+
+  @IsString()
+  @IsNotEmpty()
   severity: string;
+
+  @IsString()
+  @IsNotEmpty()
   reason: string;
 }
 
 export class ResolveExceptionDto {
+  @IsString()
+  @IsNotEmpty()
   resolution: string;
 }
 
@@ -96,5 +116,45 @@ export class ExceptionsService {
       this.logger.log(`Resolved exception ${exceptionId}`);
       return resolved;
     });
+  }
+
+  async getExceptions(status?: string, limit = 50) {
+    const where: any = {};
+    if (status && status !== 'all') {
+      where.status = status.toUpperCase();
+    }
+
+    const exceptions = await this.prisma.exception.findMany({
+      where,
+      take: Number(limit) || 50,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        asset: {
+          select: {
+            asset_number: true,
+            current_location: true,
+            current_status: true,
+            category_id: true,
+          },
+        },
+        reporter: {
+          select: {
+            employee: {
+              select: {
+                first_name: true,
+                last_name: true,
+                employee_number: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      count: exceptions.length,
+      data: exceptions,
+    };
   }
 }

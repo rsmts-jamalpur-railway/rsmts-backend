@@ -13,13 +13,13 @@ export class RepairController {
   @Post('start')
   @ApiOperation({ summary: 'Initiate a new repair cycle for an asset' })
   async startRepair(@Request() req, @Body() data: StartRepairDto) {
-    return this.repairService.startRepair(req.user.userId, req.user.assigned_location_id, data);
+    return this.repairService.startRepair(req.user.userId, req.user.assigned_location_id, data, req.user.roles);
   }
 
   @Patch('close')
   @ApiOperation({ summary: 'Complete an active repair cycle' })
   async closeRepair(@Request() req, @Body() data: CloseRepairDto) {
-    return this.repairService.closeRepair(req.user.userId, req.user.assigned_location_id, data);
+    return this.repairService.closeRepair(req.user.userId, req.user.assigned_location_id, data, req.user.roles);
   }
 
   @Post('hold')

@@ -3,14 +3,35 @@ import { PrismaService } from '../prisma/prisma.service';
 import { QaWorkflow } from './qa.workflow';
 import { SyncEventService } from '../sync/sync-event.service';
 import { SyncEntity, SyncAction } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class SubmitInspectionDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsOptional()
+  @IsString()
   asset_id?: string;
+
+  @IsOptional()
+  @IsString()
   asset_number?: string;
+
+  @IsOptional()
+  @IsString()
   repair_cycle_id?: string;
+
+  @IsOptional()
+  @IsString()
   manufacturing_order_id?: string;
+
+  @IsString()
+  @IsNotEmpty()
   result: string; // 'FIT', 'MINOR_FIX', 'NOT_FIT', 'CONDEMNATION_REQUEST'
+
+  @IsOptional()
+  @IsString()
   remarks?: string;
 }
 

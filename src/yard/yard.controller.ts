@@ -13,12 +13,12 @@ export class YardController {
   @Post('intake')
   @ApiOperation({ summary: 'Intake a new or returning asset into the Yard' })
   async intakeAsset(@Request() req, @Body() data: IntakeAssetDto) {
-    return this.yardService.intakeAsset(req.user.userId, req.user.assigned_location_id, data);
+    return this.yardService.intakeAsset(req.user.userId, req.user.assigned_location_id, data, req.user.roles);
   }
 
   @Post('dispatch')
   @ApiOperation({ summary: 'Dispatch a completed asset out of the Yard' })
   async dispatchAsset(@Request() req, @Body() data: DispatchAssetDto) {
-    return this.yardService.dispatchAsset(req.user.userId, req.user.assigned_location_id, data);
+    return this.yardService.dispatchAsset(req.user.userId, req.user.assigned_location_id, data, req.user.roles);
   }
 }

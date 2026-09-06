@@ -32,6 +32,11 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User roles not found');
     }
 
+    // SYSTEM_ADMIN has complete unrestricted authority across the workshop platform
+    if (user.roles.includes('SYSTEM_ADMIN')) {
+      return true;
+    }
+
     const hasRole = user.roles.some((role: string) => requiredRoles.includes(role));
     if (!hasRole) {
       throw new ForbiddenException(

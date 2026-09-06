@@ -4,17 +4,38 @@ import { MovementsService } from '../movements/movements.service';
 import { ManufacturingWorkflow } from './manufacturing.workflow';
 import { SyncEventService } from '../sync/sync-event.service';
 import { SyncEntity, SyncAction } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class StartManufacturingDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   asset_number: string; // The planned asset number to be manufactured
+
+  @IsString()
+  @IsNotEmpty()
   category_id: string; // e.g. 140T_CRANE
+
+  @IsString()
+  @IsNotEmpty()
   shop_id: string; // e.g. GIF
 }
 
 export class CloseManufacturingDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   order_id: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 @Injectable()
@@ -27,8 +48,9 @@ export class ManufacturingService {
     private readonly syncEventService: SyncEventService,
   ) {}
 
-  async startManufacturing(userId: string, assignedLocationId: string | undefined, data: StartManufacturingDto) {
-    if (assignedLocationId !== data.shop_id && assignedLocationId !== 'YARD') {
+  async startManufacturing(userId: string, assignedLocationId: string | undefined, data: StartManufacturingDto, userRoles?: string[]) {
+    const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+    if (!isGlobalAdmin && assignedLocationId !== data.shop_id && assignedLocationId !== 'YARD' && assignedLocationId !== 'GIF') {
       throw new ForbiddenException(`User is not scoped to manufacture at ${data.shop_id}.`);
     }
 
@@ -112,7 +134,7 @@ export class ManufacturingService {
     });
   }
 
-  async closeManufacturing(userId: string, assignedLocationId: string | undefined, data: CloseManufacturingDto) {
+  async closeManufacturing(userId: string, assignedLocationId: string | undefined, data: CloseManufacturingDto, userRoles?: string[]) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency Check
       const existingMovement = await tx.movementLog.findUnique({
@@ -133,7 +155,8 @@ export class ManufacturingService {
 
       if (!order) throw new BadRequestException('Order not found');
       
-      if (assignedLocationId !== order.asset.current_location && assignedLocationId !== 'YARD') {
+      const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+      if (!isGlobalAdmin && assignedLocationId !== order.asset.current_location && assignedLocationId !== 'YARD') {
         throw new ForbiddenException('User is not scoped to close manufacturing for this location.');
       }
 

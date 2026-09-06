@@ -5,23 +5,67 @@ import { RepairWorkflow } from './repair.workflow';
 import { SyncEventService } from '../sync/sync-event.service';
 import { SyncEntity, SyncAction } from '@prisma/client';
 
+import { IsOptional, IsString, IsNotEmpty } from 'class-validator';
+
 export class StartRepairDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   asset_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   repair_category_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   shop_id: string;
 }
 
 export class CloseRepairDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   cycle_id: string;
+
+  @IsOptional()
+  @IsString()
   final_remarks?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class RepairHoldDto {
-  client_operation_id: string;
-  cycle_id: string;
-  reason: string;
+  @IsOptional()
+  @IsString()
+  client_operation_id?: string;
+
+  @IsOptional()
+  @IsString()
+  cycle_id?: string;
+
+  @IsOptional()
+  @IsString()
+  asset_id?: string;
+
+  @IsOptional()
+  @IsString()
+  asset_number?: string;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @IsOptional()
+  @IsString()
   remarks?: string;
 }
 
@@ -35,8 +79,9 @@ export class RepairService {
     private readonly syncEventService: SyncEventService,
   ) {}
 
-  async startRepair(userId: string, assignedLocationId: string | undefined, data: StartRepairDto) {
-    if (assignedLocationId !== data.shop_id && assignedLocationId !== 'YARD') {
+  async startRepair(userId: string, assignedLocationId: string | undefined, data: StartRepairDto, userRoles?: string[]) {
+    const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+    if (!isGlobalAdmin && assignedLocationId !== data.shop_id && assignedLocationId !== 'YARD' && assignedLocationId !== 'NSY') {
       throw new ForbiddenException(`User is not scoped to operate on ${data.shop_id}.`);
     }
 
@@ -123,7 +168,7 @@ export class RepairService {
     });
   }
 
-  async closeRepair(userId: string, assignedLocationId: string | undefined, data: CloseRepairDto) {
+  async closeRepair(userId: string, assignedLocationId: string | undefined, data: CloseRepairDto, userRoles?: string[]) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency Check
       const existingMovement = await tx.movementLog.findUnique({
@@ -144,7 +189,8 @@ export class RepairService {
 
       if (!cycle) throw new BadRequestException('Cycle not found');
       
-      if (assignedLocationId !== cycle.asset.current_location && assignedLocationId !== 'YARD') {
+      const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+      if (!isGlobalAdmin && assignedLocationId !== cycle.asset.current_location && assignedLocationId !== 'YARD') {
         throw new ForbiddenException('User is not scoped to close repair for this location.');
       }
 
@@ -207,12 +253,34 @@ export class RepairService {
 
   async putOnHold(userId: string, data: RepairHoldDto) {
     return await this.prisma.$transaction(async (tx) => {
+      let cycleId = data.cycle_id;
+      let targetAssetId = data.asset_id;
+
+      if (!cycleId && (data.asset_number || data.asset_id)) {
+        const asset = await tx.asset.findFirst({
+          where: data.asset_number
+            ? { asset_number: data.asset_number.trim().toUpperCase() }
+            : { id: data.asset_id },
+          include: { repair_cycles: { where: { status: 'ACTIVE' }, take: 1 } },
+        });
+        if (asset && asset.repair_cycles.length > 0) {
+          cycleId = asset.repair_cycles[0].cycle_id;
+          targetAssetId = asset.id;
+        } else {
+          throw new BadRequestException(`No active repair cycle found for ${data.asset_number || data.asset_id}`);
+        }
+      }
+
+      if (!cycleId) throw new BadRequestException('Cycle ID or Asset identifier is required');
+
+      const opId = data.client_operation_id || `hold-${cycleId}-${Date.now()}`;
+
       // 1. Idempotency Check
       const existingHold = await tx.repairHold.findUnique({
-        where: { client_operation_id: data.client_operation_id }
+        where: { client_operation_id: opId },
       });
       if (existingHold) {
-        if (existingHold.repair_cycle_id === data.cycle_id) {
+        if (existingHold.repair_cycle_id === cycleId) {
           return { message: 'Idempotent success', hold_id: existingHold.id };
         }
         throw new ConflictException('Client operation ID exists with different payload.');
@@ -220,8 +288,8 @@ export class RepairService {
 
       // 2. Validate
       const cycle = await tx.repairCycle.findUnique({
-        where: { cycle_id: data.cycle_id },
-        include: { holds: { where: { released_at: null } } }
+        where: { cycle_id: cycleId },
+        include: { holds: { where: { released_at: null } }, asset: true },
       });
 
       if (!cycle) throw new BadRequestException('Cycle not found');
@@ -234,36 +302,70 @@ export class RepairService {
       // 3. Mutate
       const hold = await tx.repairHold.create({
         data: {
-          client_operation_id: data.client_operation_id,
-          repair_cycle_id: data.cycle_id,
-          reason: data.reason,
+          client_operation_id: opId,
+          repair_cycle_id: cycleId,
+          reason: data.reason || 'MATERIAL_SHORTAGE',
           remarks: data.remarks,
-          created_by: userId
-        }
+          created_by: userId,
+        },
+      });
+
+      // Update asset current_status to ON_HOLD
+      await tx.asset.update({
+        where: { id: cycle.asset_id },
+        data: { current_status: 'ON_HOLD' },
+      });
+
+      // Record movement log entry for hold event
+      await tx.movementLog.create({
+        data: {
+          asset_id: cycle.asset_id,
+          from_location: cycle.asset.current_location || 'NSY',
+          to_location: cycle.asset.current_location || 'NSY',
+          previous_status: cycle.asset.current_status || 'IN_REPAIR',
+          new_status: 'ON_HOLD',
+          handled_by: userId,
+          remarks: `Placed on Hold: [${hold.reason}] ${data.remarks || ''}`.trim(),
+          repair_cycle_id: cycleId,
+          timestamp: new Date(),
+          sync_status: 'Synced',
+        },
       });
 
       await this.syncEventService.record(tx, SyncEntity.REPAIR_HOLD, SyncAction.CREATED, hold.id, hold);
-      // Wait, hold repair also changes cycle and asset status in reality, but backend was not updating them previously? 
-      // It seems the backend was missing those updates, but the mobile client does. Let's just log the hold.
 
+      this.logger.log(`Placed cycle ${cycleId} on hold (${hold.reason})`);
       return hold;
     });
   }
 
   async resumeRepair(userId: string, data: RepairHoldDto) {
     return await this.prisma.$transaction(async (tx) => {
-      // We use the same DTO schema. For resume, the idempotency logic differs slightly: 
-      // the operation id represents the "release" action.
-      // Wait, there is no client_operation_id on the release event, we update the existing row.
-      // Let's rely on finding the open hold. If it's already released, it might be idempotent.
+      let cycleId = data.cycle_id;
+
+      if (!cycleId && (data.asset_number || data.asset_id)) {
+        const asset = await tx.asset.findFirst({
+          where: data.asset_number
+            ? { asset_number: data.asset_number.trim().toUpperCase() }
+            : { id: data.asset_id },
+          include: { repair_cycles: { where: { status: 'ACTIVE' }, take: 1 } },
+        });
+        if (asset && asset.repair_cycles.length > 0) {
+          cycleId = asset.repair_cycles[0].cycle_id;
+        } else {
+          throw new BadRequestException(`No active repair cycle found for ${data.asset_number || data.asset_id}`);
+        }
+      }
+
+      if (!cycleId) throw new BadRequestException('Cycle ID or Asset identifier is required');
+
       const cycle = await tx.repairCycle.findUnique({
-        where: { cycle_id: data.cycle_id },
-        include: { holds: { where: { released_at: null } } }
+        where: { cycle_id: cycleId },
+        include: { holds: { where: { released_at: null } }, asset: true },
       });
 
       if (!cycle) throw new BadRequestException('Cycle not found');
       if (cycle.holds.length === 0) {
-        // Idempotency: if already resumed recently... we can just return ok.
         return { message: 'Already resumed' };
       }
 
@@ -273,12 +375,35 @@ export class RepairService {
         where: { id: cycle.holds[0].id },
         data: {
           released_at: new Date(),
-          released_by: userId
-        }
+          released_by: userId,
+        },
+      });
+
+      // Restore asset status to IN_REPAIR
+      await tx.asset.update({
+        where: { id: cycle.asset_id },
+        data: { current_status: 'IN_REPAIR' },
+      });
+
+      // Record movement log entry for resume event
+      await tx.movementLog.create({
+        data: {
+          asset_id: cycle.asset_id,
+          from_location: cycle.asset.current_location || 'NSY',
+          to_location: cycle.asset.current_location || 'NSY',
+          previous_status: 'ON_HOLD',
+          new_status: 'IN_REPAIR',
+          handled_by: userId,
+          remarks: `Resumed repair cycle from hold: [${hold.reason}]`,
+          repair_cycle_id: cycleId,
+          timestamp: new Date(),
+          sync_status: 'Synced',
+        },
       });
 
       await this.syncEventService.record(tx, SyncEntity.REPAIR_HOLD, SyncAction.UPDATED, hold.id, hold);
 
+      this.logger.log(`Resumed cycle ${cycleId} from hold`);
       return hold;
     });
   }

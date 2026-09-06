@@ -4,30 +4,69 @@ import { MovementsService } from '../movements/movements.service';
 import { YardWorkflow } from './yard.workflow';
 import { SyncEventService } from '../sync/sync-event.service';
 import { SyncEntity, SyncAction } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class IntakeAssetDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   asset_number: string;
+
+  @IsString()
+  @IsNotEmpty()
   category_id: string; // e.g. BOXNHL
+
+  @IsString()
+  @IsNotEmpty()
   from_railway: string;
 }
 
 export class DispatchAssetDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
   asset_number: string;
+
+  @IsString()
+  @IsNotEmpty()
   to_railway: string;
 }
 
 export class AllocateAssetDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsOptional()
+  @IsString()
   asset_id?: string;
+
+  @IsOptional()
+  @IsString()
   asset_number?: string;
+
+  @IsString()
+  @IsNotEmpty()
   shop_id: string;
 }
 
 export class CancelIntakeDto {
+  @IsString()
+  @IsNotEmpty()
   client_operation_id: string;
+
+  @IsOptional()
+  @IsString()
   asset_id?: string;
+
+  @IsOptional()
+  @IsString()
   asset_number?: string;
 }
 
@@ -41,10 +80,13 @@ export class YardService {
     private readonly syncEventService: SyncEventService,
   ) {}
 
-  async intakeAsset(userId: string, assignedLocationId: string | undefined, data: IntakeAssetDto) {
-    if (assignedLocationId !== 'YARD') {
+  async intakeAsset(userId: string, assignedLocationId: string | undefined, data: IntakeAssetDto & { assigned_location?: string }, userRoles?: string[]) {
+    const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+    if (!isGlobalAdmin && assignedLocationId !== 'YARD' && assignedLocationId !== 'NSY') {
       throw new ForbiddenException('User is not scoped to operate in the YARD.');
     }
+
+    const targetLocation = data.assigned_location || 'NSY';
 
     return await this.prisma.$transaction(async (tx) => {
       // 1. Idempotency Check
@@ -53,7 +95,7 @@ export class YardService {
       });
 
       if (existingMovement) {
-        if (existingMovement.to_location === 'YARD' && existingMovement.remarks?.includes(data.from_railway)) {
+        if (existingMovement.to_location === targetLocation && existingMovement.remarks?.includes(data.from_railway || '')) {
           return { message: 'Idempotent success', log_id: existingMovement.log_id };
         }
         throw new ConflictException('Client operation ID exists with different payload.');
@@ -71,7 +113,7 @@ export class YardService {
           data: {
             asset_number: data.asset_number,
             category_id: data.category_id,
-            current_location: 'YARD',
+            current_location: targetLocation,
             current_status: 'RECEIVED_IN_YARD'
           }
         });
@@ -80,7 +122,7 @@ export class YardService {
         asset = await tx.asset.update({
           where: { id: asset.id },
           data: {
-            current_location: 'YARD',
+            current_location: targetLocation,
             current_status: 'RECEIVED_IN_YARD'
           }
         });
@@ -93,11 +135,11 @@ export class YardService {
           client_operation_id: data.client_operation_id,
           asset_id: asset.id,
           from_location: undefined,
-          to_location: 'YARD',
+          to_location: targetLocation,
           previous_status: undefined,
           new_status: 'RECEIVED_IN_YARD',
           handled_by: userId,
-          remarks: `Intake from ${data.from_railway}`,
+          remarks: `Intake from ${data.from_railway || 'Zonal Railway'} to ${targetLocation}`,
           timestamp: new Date()
         }
       });
@@ -109,8 +151,9 @@ export class YardService {
     });
   }
 
-  async dispatchAsset(userId: string, assignedLocationId: string | undefined, data: DispatchAssetDto) {
-    if (assignedLocationId !== 'YARD') {
+  async dispatchAsset(userId: string, assignedLocationId: string | undefined, data: DispatchAssetDto, userRoles?: string[]) {
+    const isGlobalAdmin = !assignedLocationId || userRoles?.includes('SYSTEM_ADMIN');
+    if (!isGlobalAdmin && assignedLocationId !== 'YARD' && assignedLocationId !== 'NSY' && assignedLocationId !== 'Trial Yard') {
       throw new ForbiddenException('User is not scoped to operate in the YARD.');
     }
 

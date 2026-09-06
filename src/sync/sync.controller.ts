@@ -20,6 +20,11 @@ export class SyncController {
     return await this.syncService.pull(query);
   }
 
+  @Get('status')
+  async getStatus() {
+    return await this.syncService.getStatus();
+  }
+
   @Post('push')
   async push(@Request() req, @Body() data: any) {
     // WatermelonDB Push format:

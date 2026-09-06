@@ -21,6 +21,10 @@ import { ManufacturingModule } from './manufacturing/manufacturing.module';
 import { QaModule } from './qa/qa.module';
 import { SyncModule } from './sync/sync.module';
 import { SyncEventModule } from './sync/sync-event.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { UsersModule } from './users/users.module';
+import { ReportsModule } from './reports/reports.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -88,6 +92,10 @@ import { SyncEventModule } from './sync/sync-event.module';
     QaModule,
     SyncEventModule,
     SyncModule,
+    DashboardModule,
+    UsersModule,
+    ReportsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [
