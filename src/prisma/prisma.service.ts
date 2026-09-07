@@ -10,13 +10,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       process.env.DATABASE_URL ||
       process.env.DATABASE_PRIVATE_URL ||
       process.env.POSTGRES_URL;
-    if (connectionString) {
-      const pool = new Pool({ connectionString });
-      const adapter = new PrismaPg(pool);
-      super({ adapter });
-    } else {
-      super();
+
+    if (!connectionString) {
+      throw new Error(
+        'DATABASE_URL is not defined in the environment variables. Please configure it in your Railway service variables.',
+      );
     }
+
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
+    super({ adapter });
   }
 
   async onModuleInit() {
