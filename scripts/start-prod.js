@@ -12,7 +12,12 @@ console.log('🔍 Environment check:');
 console.log('   PORT:', process.env.PORT || '3001 (default)');
 console.log('   DATABASE_URL defined:', !!process.env.DATABASE_URL);
 console.log('   DATABASE_PRIVATE_URL defined:', !!process.env.DATABASE_PRIVATE_URL);
+console.log('   DATABASE_PUBLIC_URL defined:', !!process.env.DATABASE_PUBLIC_URL);
+console.log('   PG_URL defined:', !!process.env.PG_URL);
 console.log('   JWT_SECRET defined:', !!process.env.JWT_SECRET);
+
+const dbUrlKeys = Object.keys(process.env).filter(k => k.includes('URL') || k.includes('DATABASE') || k.includes('POSTGRES'));
+console.log('   Available DB-related env keys:', dbUrlKeys.join(', '));
 
 if (dbUrl) {
   console.log('🚀 Running database migrations (prisma migrate deploy)...');
