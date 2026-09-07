@@ -13,7 +13,7 @@ const prisma = new PrismaClient({ adapter });
 async function hashPassword(password: string) {
   const salt = new Uint8Array(16);
   crypto.webcrypto.getRandomValues(salt);
-  
+
   return await argon2id({
     password,
     salt,
@@ -27,7 +27,7 @@ async function hashPassword(password: string) {
 
 async function main() {
   console.log('Seeding master data...');
-  
+
   // 1. Roles
   const roles = [
     { name: 'SYSTEM_ADMIN', description: 'System administration', is_system_role: true },
@@ -143,10 +143,10 @@ async function main() {
 
   // 4. Default Admin User
   const adminRole = await prisma.role.findUnique({ where: { name: 'SYSTEM_ADMIN' } });
-  
+
   if (adminRole) {
     const pwdHash = await hashPassword('Admin@123!');
-    
+
     const adminEmployee = await prisma.employee.upsert({
       where: { employee_number: 'ADM-001' },
       update: {},
@@ -196,14 +196,14 @@ async function main() {
       });
     }
 
-    // 4b. Farhan Aiyyar System Admin User
+    // 4b. Farhan Naiyyar System Admin User
     const farhanEmp = await prisma.employee.upsert({
       where: { employee_number: 'FARHAN-01' },
       update: {},
       create: {
         employee_number: 'FARHAN-01',
         first_name: 'Farhan',
-        last_name: 'Aiyyar',
+        last_name: 'Naiyyar',
       }
     });
 
