@@ -47,15 +47,13 @@ if (dbUrl) {
     execSync('npx prisma migrate deploy', { stdio: 'inherit' });
     console.log('✅ Database migrations applied successfully.');
 
-    console.log('🌱 Running database seed (prisma db seed)...');
-    execSync('npx prisma db seed', {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-        TS_NODE_COMPILER_OPTIONS: '{"module":"CommonJS"}'
-      }
-    });
-    console.log('✅ Database seeded successfully.');
+    console.log('🌱 Running database seed (node prisma/seed.js)...');
+    if (fs.existsSync(path.join(__dirname, '../prisma/seed.js'))) {
+      execSync('node prisma/seed.js', { stdio: 'inherit' });
+      console.log('✅ Database seeded successfully.');
+    } else {
+      console.warn('⚠️ seed.js not found. Make sure it was compiled during the build step.');
+    }
   } catch (err) {
     console.error('❌ Database setup failed:', err.message);
     process.exit(1);

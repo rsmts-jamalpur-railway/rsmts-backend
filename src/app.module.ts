@@ -37,7 +37,7 @@ import { SettingsModule } from './settings/settings.module';
         DATABASE_PRIVATE_URL: Joi.string().optional(),
         POSTGRES_URL: Joi.string().optional(),
         JWT_SECRET: Joi.string().default('rsmts-jamalpur-workshop-secret-key-2026'),
-        REDIS_URL: Joi.string().default('redis://localhost:6379'),
+        REDIS_URL: Joi.string().optional(),
       }),
     }),
 
@@ -52,23 +52,36 @@ import { SettingsModule } from './settings/settings.module';
       },
     }),
 
-    // 3. Redis Cache
+    // 3. Redis Cache (with graceful fallback to in-memory cache)
     CacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
-        const store = await redisStore({
-          url: configService.get<string>('REDIS_URL'),
-        });
-
-        // Prevent unhandled error crashes on ECONNRESET
-        if (store.client) {
-          store.client.on('error', (err: any) => {
-            console.error('Redis Client Error:', err.message);
-          });
+        const redisUrl = configService.get<string>('REDIS_URL');
+        
+        if (!redisUrl) {
+          console.warn('⚠️ REDIS_URL not provided. Falling back to in-memory cache.');
+          return {};
         }
 
-        return { store };
+        try {
+          const store = await redisStore({
+            url: redisUrl,
+          });
+
+          // Prevent unhandled error crashes on ECONNRESET
+          if (store.client) {
+            store.client.on('error', (err: any) => {
+              console.error('Redis Client Error:', err.message);
+            });
+          }
+
+          console.log('✅ Connected to Redis cache successfully.');
+          return { store };
+        } catch (err) {
+          console.error('❌ Failed to connect to Redis. Falling back to in-memory cache:', err.message);
+          return {};
+        }
       },
       inject: [ConfigService],
     }),
