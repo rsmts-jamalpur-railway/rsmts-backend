@@ -6,6 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install all dependencies (including devDependencies)
 RUN npm ci
@@ -27,6 +28,7 @@ WORKDIR /app
 # Copy package and schema files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 COPY scripts ./scripts/
 
 # Install only production dependencies
