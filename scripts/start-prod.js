@@ -2,6 +2,8 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+process.env.NODE_ENV = 'production';
+
 let dbUrl =
   process.env.DATABASE_PUBLIC_URL ||
   process.env.DATABASE_PRIVATE_URL ||
