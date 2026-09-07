@@ -2,12 +2,16 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-const dbUrl =
+let dbUrl =
   process.env.DATABASE_PUBLIC_URL ||
   process.env.DATABASE_PRIVATE_URL ||
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
   process.env.POSTGRES_PRISMA_URL;
+
+if (dbUrl) {
+  dbUrl = dbUrl.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+}
 
 console.log('🔍 Environment check:');
 console.log('   PORT:', process.env.PORT || '3001 (default)');
