@@ -8,6 +8,12 @@ const dbUrl =
   process.env.POSTGRES_URL ||
   process.env.POSTGRES_PRISMA_URL;
 
+console.log('🔍 Environment check:');
+console.log('   PORT:', process.env.PORT || '3001 (default)');
+console.log('   DATABASE_URL defined:', !!process.env.DATABASE_URL);
+console.log('   DATABASE_PRIVATE_URL defined:', !!process.env.DATABASE_PRIVATE_URL);
+console.log('   JWT_SECRET defined:', !!process.env.JWT_SECRET);
+
 if (dbUrl) {
   console.log('🚀 Running database migrations (prisma migrate deploy)...');
   try {

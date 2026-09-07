@@ -33,9 +33,9 @@ import { SettingsModule } from './settings/settings.module';
       isGlobal: true,
       validationSchema: Joi.object({
         PORT: Joi.number().default(3001),
-        DATABASE_URL: Joi.string()
-          .default(process.env.DATABASE_PRIVATE_URL || process.env.POSTGRES_URL)
-          .required(),
+        DATABASE_URL: Joi.string().optional(),
+        DATABASE_PRIVATE_URL: Joi.string().optional(),
+        POSTGRES_URL: Joi.string().optional(),
         JWT_SECRET: Joi.string().default('rsmts-jamalpur-workshop-secret-key-2026'),
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
       }),
