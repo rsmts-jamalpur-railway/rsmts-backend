@@ -15,6 +15,16 @@ if (dbUrl) {
   dbUrl = dbUrl.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
 }
 
+let redisUrl =
+  process.env.REDIS_PUBLIC_URL ||
+  process.env.REDIS_PRIVATE_URL ||
+  process.env.REDIS_URL;
+
+if (redisUrl) {
+  redisUrl = redisUrl.replace(/^"|"$/g, '').replace(/^'|'$/g, '');
+  process.env.REDIS_URL = redisUrl;
+}
+
 console.log('🔍 Environment check:');
 console.log('   PORT:', process.env.PORT || '3001 (default)');
 console.log('   DATABASE_URL defined:', !!process.env.DATABASE_URL);
@@ -22,9 +32,13 @@ console.log('   DATABASE_PRIVATE_URL defined:', !!process.env.DATABASE_PRIVATE_U
 console.log('   DATABASE_PUBLIC_URL defined:', !!process.env.DATABASE_PUBLIC_URL);
 console.log('   PG_URL defined:', !!process.env.PG_URL);
 console.log('   JWT_SECRET defined:', !!process.env.JWT_SECRET);
+console.log('   REDIS_URL defined:', !!process.env.REDIS_URL);
 
 const dbUrlKeys = Object.keys(process.env).filter(k => k.includes('URL') || k.includes('DATABASE') || k.includes('POSTGRES'));
 console.log('   Available DB-related env keys:', dbUrlKeys.join(', '));
+
+const redisKeys = Object.keys(process.env).filter(k => k.includes('REDIS'));
+console.log('   Available Redis-related env keys:', redisKeys.join(', '));
 
 if (dbUrl) {
   console.log('🚀 Running database migrations (prisma migrate deploy)...');
