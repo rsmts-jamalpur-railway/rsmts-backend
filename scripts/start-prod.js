@@ -16,6 +16,7 @@ console.log('   JWT_SECRET defined:', !!process.env.JWT_SECRET);
 
 if (dbUrl) {
   console.log('🚀 Running database migrations (prisma migrate deploy)...');
+  process.env.DATABASE_URL = dbUrl;
   try {
     execSync('npx prisma migrate deploy', { stdio: 'inherit' });
     console.log('✅ Database migrations applied successfully.');
