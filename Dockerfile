@@ -6,6 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Install all dependencies (including devDependencies)
 RUN npm ci
@@ -24,9 +25,11 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Copy package files
+# Copy package and schema files
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
+COPY scripts ./scripts/
 
 # Install only production dependencies
 RUN npm ci --omit=dev
@@ -37,6 +40,12 @@ COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/clie
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
+
+# Copy compiled prisma config to root for native execution
+COPY --from=builder /app/dist/prisma.config.js ./prisma.config.js
+
+# Expose port (Railway automatically routes via PORT env)
+EXPOSE 3001
 
 # Start the application
 CMD ["npm", "run", "start:prod"]
