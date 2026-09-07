@@ -48,7 +48,13 @@ if (dbUrl) {
     console.log('✅ Database migrations applied successfully.');
 
     console.log('🌱 Running database seed (prisma db seed)...');
-    execSync('npx prisma db seed', { stdio: 'inherit' });
+    execSync('npx prisma db seed', {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        TS_NODE_COMPILER_OPTIONS: '{"module":"CommonJS"}'
+      }
+    });
     console.log('✅ Database seeded successfully.');
   } catch (err) {
     console.error('❌ Database setup failed:', err.message);
