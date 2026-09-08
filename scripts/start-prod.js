@@ -49,14 +49,18 @@ if (dbUrl) {
 
     console.log('🌱 Running database seed (node prisma/seed.js)...');
     if (fs.existsSync(path.join(__dirname, '../prisma/seed.js'))) {
-      execSync('node prisma/seed.js', { stdio: 'inherit' });
-      console.log('✅ Database seeded successfully.');
+      try {
+        execSync('node prisma/seed.js', { stdio: 'inherit' });
+        console.log('✅ Database seeded successfully.');
+      } catch (seedErr) {
+        console.error('⚠️ Database seed failed but continuing:', seedErr.message);
+      }
     } else {
       console.warn('⚠️ seed.js not found. Make sure it was compiled during the build step.');
     }
   } catch (err) {
-    console.error('❌ Database setup failed:', err.message);
-    process.exit(1);
+    console.error('❌ Database migration failed:', err.message);
+    // Continue instead of exiting, to see if app can at least start
   }
 } else {
   console.warn('⚠️ WARNING: Neither DATABASE_URL nor DATABASE_PRIVATE_URL is configured in environment variables.');

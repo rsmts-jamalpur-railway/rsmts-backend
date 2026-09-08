@@ -45,4 +45,18 @@ export class AuthController {
   getProfile(@Request() req) {
     return req.user;
   }
+
+  @Public()
+  @Post('seed')
+  @ApiOperation({ summary: 'Manually run database seed' })
+  async seed() {
+    const { execSync } = require('child_process');
+    const path = require('path');
+    try {
+      const output = execSync('node prisma/seed.js', { cwd: path.join(__dirname, '../../') }).toString();
+      return { success: true, output };
+    } catch (e) {
+      return { success: false, error: e.message, output: e.stdout ? e.stdout.toString() : '', stderr: e.stderr ? e.stderr.toString() : '' };
+    }
+  }
 }
