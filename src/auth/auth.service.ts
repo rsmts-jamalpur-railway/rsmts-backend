@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { argon2id } from 'hash-wasm';
+import { argon2id, argon2Verify } from 'hash-wasm';
 import { LoginDto } from './dto/login.dto';
 import * as crypto from 'crypto';
 
@@ -43,7 +43,6 @@ export class AuthService {
     }
 
     // 2. Verify Argon2id password
-    const { argon2Verify } = await import('hash-wasm');
     const isPasswordValid = await argon2Verify({
       password,
       hash: user.password_hash
