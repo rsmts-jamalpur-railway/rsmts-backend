@@ -58,30 +58,8 @@ import { SettingsModule } from './settings/settings.module';
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const redisUrl = configService.get<string>('REDIS_URL');
-        
-        if (!redisUrl) {
-          console.warn('⚠️ REDIS_URL not provided. Falling back to in-memory cache.');
-          return {};
-        }
-
-        try {
-          const store = await redisStore({
-            url: redisUrl,
-          });
-
-          // Prevent unhandled error crashes on ECONNRESET
-          if (store.client) {
-            store.client.on('error', (err: any) => {
-              console.error('Redis Client Error:', err.message);
-            });
-          }
-
-          console.log('✅ Connected to Redis cache successfully.');
-          return { store };
-        } catch (err) {
-          console.error('❌ Failed to connect to Redis. Falling back to in-memory cache:', err.message);
-          return {};
-        }
+        console.warn(`⚠️ REDIS_URL was: ${redisUrl ? 'provided' : 'not provided'}. Using in-memory cache to ensure stability.`);
+        return {};
       },
       inject: [ConfigService],
     }),

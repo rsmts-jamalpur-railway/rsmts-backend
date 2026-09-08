@@ -27,7 +27,7 @@ WORKDIR /app
 
 # Copy package and schema files
 COPY package*.json ./
-COPY prisma ./prisma/
+COPY --from=builder /app/prisma ./prisma/
 COPY prisma.config.ts ./
 COPY scripts ./scripts/
 
