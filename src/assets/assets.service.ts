@@ -535,6 +535,9 @@ export class AssetsService {
     if (hard) {
       // Hard delete: Clean cascade dependencies first
       await this.prisma.$transaction([
+        this.prisma.assetPhoto.deleteMany({ where: { asset_id: existing.id } }),
+        this.prisma.qATestResult.deleteMany({ where: { inspection: { asset_id: existing.id } } }),
+        this.prisma.fitCertificate.deleteMany({ where: { inspection: { asset_id: existing.id } } }),
         this.prisma.movementLog.deleteMany({ where: { asset_id: existing.id } }),
         this.prisma.exception.deleteMany({ where: { asset_id: existing.id } }),
         this.prisma.allocation.deleteMany({ where: { asset_id: existing.id } }),

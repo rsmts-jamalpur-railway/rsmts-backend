@@ -263,10 +263,10 @@ model Allocation {
 // -----------------------------------------------------------------------------
 
 model RepairCycle {
-  cycle_id String @id @default(uuid()) @db.Uuid
+  cycle_id            String  @id @default(uuid()) @db.Uuid
   client_operation_id String? @unique
-  asset_id String @db.Uuid
-  asset    Asset  @relation(fields: [asset_id], references: [id])
+  asset_id            String  @db.Uuid
+  asset               Asset   @relation(fields: [asset_id], references: [id])
 
   repair_category_id String
   repair_category    RepairCategoryMaster @relation(fields: [repair_category_id], references: [id])
@@ -303,10 +303,10 @@ model RepairAssessment {
 }
 
 model RepairHold {
-  id              String      @id @default(uuid()) @db.Uuid
-  client_operation_id String? @unique
-  repair_cycle_id String      @db.Uuid
-  repair_cycle    RepairCycle @relation(fields: [repair_cycle_id], references: [cycle_id])
+  id                  String      @id @default(uuid()) @db.Uuid
+  client_operation_id String?     @unique
+  repair_cycle_id     String      @db.Uuid
+  repair_cycle        RepairCycle @relation(fields: [repair_cycle_id], references: [cycle_id])
 
   reason  String
   remarks String? @db.Text
@@ -350,10 +350,10 @@ model ManufacturingStageMaster {
 }
 
 model ManufacturingOrder {
-  order_id String @id @default(uuid()) @db.Uuid
+  order_id            String  @id @default(uuid()) @db.Uuid
   client_operation_id String? @unique
-  asset_id String @db.Uuid
-  asset    Asset  @relation(fields: [asset_id], references: [id])
+  asset_id            String  @db.Uuid
+  asset               Asset   @relation(fields: [asset_id], references: [id])
 
   production_type String
   built_by_shop   String
@@ -394,10 +394,10 @@ model ManufacturingWorkLog {
 // -----------------------------------------------------------------------------
 
 model QAInspection {
-  id       String @id @default(uuid()) @db.Uuid
+  id                  String  @id @default(uuid()) @db.Uuid
   client_operation_id String? @unique
-  asset_id String @db.Uuid
-  asset    Asset  @relation(fields: [asset_id], references: [id])
+  asset_id            String  @db.Uuid
+  asset               Asset   @relation(fields: [asset_id], references: [id])
 
   repair_cycle_id String?      @db.Uuid
   repair_cycle    RepairCycle? @relation(fields: [repair_cycle_id], references: [cycle_id])
@@ -447,10 +447,10 @@ model FitCertificate {
 // -----------------------------------------------------------------------------
 
 model Exception {
-  id       String @id @default(uuid()) @db.Uuid
+  id                  String  @id @default(uuid()) @db.Uuid
   client_operation_id String? @unique
-  asset_id String @db.Uuid
-  asset    Asset  @relation(fields: [asset_id], references: [id])
+  asset_id            String  @db.Uuid
+  asset               Asset   @relation(fields: [asset_id], references: [id])
 
   type     String
   status   String
@@ -479,10 +479,10 @@ model Exception {
 // -----------------------------------------------------------------------------
 
 model MovementLog {
-  log_id   String @id @default(uuid()) @db.Uuid
+  log_id              String  @id @default(uuid()) @db.Uuid
   client_operation_id String? @unique
-  asset_id String @db.Uuid
-  asset    Asset  @relation(fields: [asset_id], references: [id])
+  asset_id            String  @db.Uuid
+  asset               Asset   @relation(fields: [asset_id], references: [id])
 
   from_location String?
   fromLoc       Location? @relation("FromLocation", fields: [from_location], references: [location_id])
