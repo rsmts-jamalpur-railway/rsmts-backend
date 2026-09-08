@@ -1,11 +1,12 @@
 import { Controller, Get, Post, Patch, Delete, Param, Query, Body, UseGuards, Request } from '@nestjs/common';
 import { AssetsService, CreateAssetDto, UpdateAssetDto } from './assets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('assets')
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
@@ -71,6 +72,7 @@ export class AssetsController {
   }
 
   @Delete(':assetNumber')
+  @Roles('ADMIN', 'SYSTEM_ADMIN')
   @ApiOperation({ summary: 'Deactivate (soft) or permanently delete (hard) an asset' })
   @ApiParam({ name: 'assetNumber', example: '21021845128' })
   @ApiQuery({ name: 'hard', required: false, example: 'false' })
