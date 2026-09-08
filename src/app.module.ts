@@ -26,6 +26,8 @@ import { UsersModule } from './users/users.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
 
+import { EventsModule } from './events/events.module';
+
 @Module({
   imports: [
     // 1. Environment Config & Validation
@@ -76,6 +78,7 @@ import { SettingsModule } from './settings/settings.module';
     CoreModule,
     HealthModule,
     AuthModule,
+    EventsModule,
     MovementsModule,
     AssetsModule,
     ExceptionsModule,
