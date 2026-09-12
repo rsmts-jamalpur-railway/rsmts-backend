@@ -65,15 +65,15 @@ export class AuthService {
       assigned_location_id: user.assigned_location_id,
     };
 
-    const accessToken = this.jwtService.sign(payload, { expiresIn: '15m' });
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '365d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '365d' });
 
     // Store in Session table
     await this.prisma.session.create({
       data: {
         user_id: user.id,
         session_token_hash: refreshToken, // Should hash this in prod
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
       }
     });
 
