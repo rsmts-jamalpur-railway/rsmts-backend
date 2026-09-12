@@ -1,5 +1,5 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { YardService, IntakeAssetDto, DispatchAssetDto } from './yard.service';
+import { Controller, Post, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { YardService, IntakeAssetDto, DispatchAssetDto, UpdateAssetDto } from './yard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
@@ -9,6 +9,13 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 @Controller('yard')
 export class YardController {
   constructor(private readonly yardService: YardService) {}
+
+  @Patch('asset/:id')
+  @ApiOperation({ summary: 'Update an existing asset details' })
+  async updateAsset(@Request() req, @Param('id') assetId: string, @Body() data: UpdateAssetDto) {
+    // Inject the asset_id from the URL into the DTO for the service method
+    return this.yardService.updateAsset(req.user.userId, { ...data, asset_id: assetId });
+  }
 
   @Post('intake')
   @ApiOperation({ summary: 'Intake a new or returning asset into the Yard' })

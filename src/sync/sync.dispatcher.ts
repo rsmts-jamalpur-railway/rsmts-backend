@@ -39,6 +39,9 @@ export class SyncDispatcher {
       case 'YARD_CANCEL_INTAKE':
         res = await this.yardService.cancelIntake(userId, parsedPayload);
         return this.formatResult(res, res.log_id, 'MOVEMENT_LOG');
+      case 'UPDATE_ASSET':
+        res = await this.yardService.updateAsset(userId, parsedPayload);
+        return this.formatResult(res, res.id, 'ASSET');
       // REPAIR
       case 'REPAIR_START':
         res = await this.repairService.startRepair(userId, assignedLocationId, parsedPayload);

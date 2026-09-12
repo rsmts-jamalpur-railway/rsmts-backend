@@ -3,6 +3,7 @@ import type { PullSyncQuery } from './sync.service';
 import { SyncService } from './sync.service';
 import { SyncDispatcher } from './sync.dispatcher';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { EventsGateway } from '../events/events.gateway';
 
 @Controller('sync')
 @UseGuards(JwtAuthGuard)
@@ -10,6 +11,7 @@ export class SyncController {
   constructor(
     private readonly syncService: SyncService,
     private readonly syncDispatcher: SyncDispatcher,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   @Get('pull')
@@ -72,6 +74,10 @@ export class SyncController {
           code
         });
       }
+    }
+
+    if (results.length > 0) {
+      this.eventsGateway.broadcast('sync_event', { message: 'sync_required' });
     }
 
     return { 

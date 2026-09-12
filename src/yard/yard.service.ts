@@ -70,6 +70,40 @@ export class CancelIntakeDto {
   asset_number?: string;
 }
 
+export class UpdateAssetDto {
+  @IsString()
+  @IsNotEmpty()
+  client_operation_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  asset_id: string;
+
+  @IsOptional()
+  @IsString()
+  asset_number?: string;
+
+  @IsOptional()
+  @IsString()
+  railway_zone?: string;
+
+  @IsOptional()
+  @IsString()
+  track_line?: string;
+
+  @IsOptional()
+  @IsString()
+  train_number?: string;
+
+  @IsOptional()
+  @IsString()
+  remarks?: string;
+
+  @IsOptional()
+  @IsString()
+  condition?: string;
+}
+
 @Injectable()
 export class YardService {
   private readonly logger = new Logger(YardService.name);
@@ -304,6 +338,37 @@ export class YardService {
       await this.syncEventService.record(tx, SyncEntity.MOVEMENT_LOG, SyncAction.CREATED, movement.log_id, movement);
 
       return movement;
+    });
+  }
+
+  async updateAsset(userId: string, data: UpdateAssetDto) {
+    return await this.prisma.$transaction(async (tx) => {
+      // 1. Idempotency Check (we can use the sync event or log for this, but for update, it's fine)
+      const asset = await tx.asset.findUnique({
+        where: { id: data.asset_id }
+      });
+
+      if (!asset) throw new ConflictException('Asset not found');
+
+      const customFields = (asset.custom_fields as Record<string, any>) || {};
+      
+      if (data.railway_zone !== undefined) customFields.railway_zone = data.railway_zone;
+      if (data.track_line !== undefined) customFields.track_line = data.track_line;
+      if (data.train_number !== undefined) customFields.train_number = data.train_number;
+      if (data.remarks !== undefined) customFields.remarks = data.remarks;
+      if (data.condition !== undefined) customFields.condition = data.condition;
+
+      const updatedAsset = await tx.asset.update({
+        where: { id: asset.id },
+        data: {
+          asset_number: data.asset_number || asset.asset_number,
+          custom_fields: customFields
+        }
+      });
+
+      await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+
+      return updatedAsset;
     });
   }
 }
