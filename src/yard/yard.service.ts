@@ -19,9 +19,17 @@ export class IntakeAssetDto {
   @IsNotEmpty()
   category_id: string; // e.g. BOXNHL
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  from_railway: string;
+  from_railway?: string;
+
+  @IsOptional()
+  @IsString()
+  assigned_location?: string;
+
+  @IsOptional()
+  @IsString()
+  remarks?: string;
 }
 
 export class DispatchAssetDto {
@@ -173,7 +181,7 @@ export class YardService {
           previous_status: undefined,
           new_status: 'RECEIVED_IN_YARD',
           handled_by: userId,
-          remarks: `Intake from ${data.from_railway || 'Zonal Railway'} to ${targetLocation}`,
+          remarks: data.remarks || `Intake from ${data.from_railway || 'Zonal Railway'} to ${targetLocation}`,
           timestamp: new Date()
         }
       });
