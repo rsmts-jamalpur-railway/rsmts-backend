@@ -26,6 +26,14 @@ async function hashPassword(password: string) {
 }
 
 async function main() {
+  const roleCount = await prisma.role.count();
+  const forceSeed = process.env.FORCE_SEED === 'true';
+
+  if (roleCount > 0 && !forceSeed) {
+    console.log('Database already seeded. Set FORCE_SEED=true in environment to force re-seeding. Skipping...');
+    return;
+  }
+
   console.log('Seeding master data...');
 
   // 1. Roles

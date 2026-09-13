@@ -18389,6 +18389,12 @@ async function hashPassword(password) {
   });
 }
 async function main() {
+  const roleCount = await prisma.role.count();
+  const forceSeed = process.env.FORCE_SEED === "true";
+  if (roleCount > 0 && !forceSeed) {
+    console.log("Database already seeded. Set FORCE_SEED=true in environment to force re-seeding. Skipping...");
+    return;
+  }
   console.log("Seeding master data...");
   const roles = [
     { name: "SYSTEM_ADMIN", description: "System administration", is_system_role: true },
