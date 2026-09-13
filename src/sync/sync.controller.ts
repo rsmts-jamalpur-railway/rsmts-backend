@@ -59,6 +59,17 @@ export class SyncController {
         let code = 'INTERNAL_SERVER_ERROR';
         const errStr = err.message || '';
         
+        if (err.code === 'P2002') {
+          // Unique constraint failed on client_operation_id -> already processed
+          results.push({ 
+            client_operation_id: op.client_operation_id, 
+            status: 'ALREADY_PROCESSED', 
+            server_id: null,
+            entity: null
+          });
+          continue;
+        }
+
         if (err.status === 400 || err.status === 403 || err.status === 404 || err.status === 409) {
            if (errStr.includes('maximum capacity')) code = 'CAPACITY_EXCEEDED';
            else if (errStr.includes('Asset cannot start repair') || errStr.includes('Can only hold') || errStr.includes('Cycle must be ACTIVE') || errStr.includes('Cannot complete')) code = 'INVALID_STATE_TRANSITION';
