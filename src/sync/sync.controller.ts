@@ -59,11 +59,12 @@ export class SyncController {
         let code = 'INTERNAL_SERVER_ERROR';
         const errStr = err.message || '';
         
-        if (err.status === 400 || err.status === 403 || err.status === 404 || err.status === 409) {
+        const status = err.status || (err.getStatus ? err.getStatus() : 500);
+        if (status === 400 || status === 403 || status === 404 || status === 409) {
            if (errStr.includes('maximum capacity')) code = 'CAPACITY_EXCEEDED';
            else if (errStr.includes('Asset cannot start repair') || errStr.includes('Can only hold') || errStr.includes('Cycle must be ACTIVE') || errStr.includes('Cannot complete')) code = 'INVALID_STATE_TRANSITION';
-           else if (err.status === 403) code = 'FORBIDDEN_SCOPE';
-           else if (err.status === 404 || errStr.includes('not found')) code = 'RESOURCE_NOT_FOUND';
+           else if (status === 403) code = 'FORBIDDEN_SCOPE';
+           else if (status === 404 || errStr.includes('not found')) code = 'RESOURCE_NOT_FOUND';
            else code = 'VALIDATION_ERROR';
         }
 

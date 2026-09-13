@@ -1,5 +1,5 @@
 import { Controller, Post, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
-import { YardService, IntakeAssetDto, DispatchAssetDto, UpdateAssetDto } from './yard.service';
+import { YardService, IntakeAssetDto, DispatchAssetDto, UpdateAssetDto, AllocateAssetDto, CancelIntakeDto } from './yard.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
@@ -27,5 +27,17 @@ export class YardController {
   @ApiOperation({ summary: 'Dispatch a completed asset out of the Yard' })
   async dispatchAsset(@Request() req, @Body() data: DispatchAssetDto) {
     return this.yardService.dispatchAsset(req.user.userId, req.user.assigned_location_id, data, req.user.roles);
+  }
+
+  @Post('allocate')
+  @ApiOperation({ summary: 'Allocate an asset to a specific shop' })
+  async allocateAsset(@Request() req, @Body() data: AllocateAssetDto) {
+    return this.yardService.allocateAsset(req.user.userId, data);
+  }
+
+  @Post('cancel-intake')
+  @ApiOperation({ summary: 'Cancel an intake operation' })
+  async cancelIntake(@Request() req, @Body() data: CancelIntakeDto) {
+    return this.yardService.cancelIntake(req.user.userId, data);
   }
 }

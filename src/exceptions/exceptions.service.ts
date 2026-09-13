@@ -34,6 +34,10 @@ export class ResolveExceptionDto {
   @IsString()
   @IsNotEmpty()
   resolution: string;
+
+  @IsOptional()
+  @IsString()
+  new_asset_status?: string;
 }
 
 @Injectable()
@@ -112,6 +116,15 @@ export class ExceptionsService {
       });
 
       await this.syncEventService.record(tx, SyncEntity.EXCEPTION, SyncAction.UPDATED, resolved.id, resolved);
+
+      if (data.new_asset_status && exception.asset_id) {
+        const updatedAsset = await tx.asset.update({
+          where: { id: exception.asset_id },
+          data: { current_status: data.new_asset_status }
+        });
+        await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
+        this.logger.log(`Asset ${exception.asset_id} status updated to ${data.new_asset_status} upon exception resolution.`);
+      }
 
       this.logger.log(`Resolved exception ${exceptionId}`);
       return resolved;

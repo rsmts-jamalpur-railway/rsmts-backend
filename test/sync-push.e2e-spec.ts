@@ -23,9 +23,9 @@ describe('Sync API (e2e)', () => {
     // Authenticate a user
     const loginRes = await request(app.getHttpServer())
       .post('/v1/auth/login')
-      .send({ identifier: 'mdfarhan6873@gmail.com', password: 'password' }); // using the known admin
+      .send({ identifier: 'admin@rsmts.gov.in', password: 'Admin@123!' }); // using the seeded admin
 
-    jwtToken = loginRes.body.access_token;
+    jwtToken = loginRes.body.tokens.access_token;
   });
 
   afterAll(async () => {
@@ -52,7 +52,7 @@ describe('Sync API (e2e)', () => {
       .set('Authorization', `Bearer ${jwtToken}`)
       .send({ changes: { sync_operations: { created: [op] } } });
       
-    expect(res.status).toBe(200); // 200 overall push
+    expect(res.status).toBe(201); // 201 overall push
     expect(res.body.errors).toBeDefined();
     expect(res.body.errors[0].code).toBe('RESOURCE_NOT_FOUND'); // asset invalid-id not found
     expect(res.body.errors[0].client_operation_id).toBe('test-uuid-400');

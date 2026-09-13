@@ -23,6 +23,7 @@ export class SyncDispatcher {
     const { command_type, payload } = operation;
 
     const parsedPayload = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    parsedPayload.client_operation_id = operation.client_operation_id;
 
     let res: any;
     switch (command_type) {

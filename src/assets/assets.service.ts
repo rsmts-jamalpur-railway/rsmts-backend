@@ -391,6 +391,13 @@ export class AssetsService {
     const location = dto.current_location || (dto.origin === 'MANUFACTURING' ? 'GIF' : 'NSY');
     const status = dto.current_status || (dto.origin === 'MANUFACTURING' ? 'IN_MANUFACTURING' : 'Received NSY');
 
+    const requiresCheckDigit = category?.requires_check_digit || cleanNumber.length === 11;
+    if (requiresCheckDigit) {
+      if (!this.validateModulo10CheckDigit(cleanNumber)) {
+        throw new BadRequestException(`Asset number ${cleanNumber} failed Modulo-10 check digit validation.`);
+      }
+    }
+
     const asset = await this.prisma.asset.create({
       data: {
         asset_number: cleanNumber,
@@ -578,5 +585,29 @@ export class AssetsService {
         message: `Asset #${cleanNumber} deactivated.`,
       };
     }
+  }
+  private validateModulo10CheckDigit(wagonNumber: string): boolean {
+    if (wagonNumber.length !== 11) return false;
+    
+    let s1 = 0;
+    let s2 = 0;
+    
+    for (let i = 0; i < 10; i++) {
+      const digit = parseInt(wagonNumber[i], 10);
+      if (isNaN(digit)) return false;
+      if (i % 2 === 1) {
+        s1 += digit;
+      } else {
+        s2 += digit;
+      }
+    }
+    
+    const s3 = s2 * 3;
+    const s4 = s1 + s3;
+    const s5 = Math.ceil(s4 / 10) * 10;
+    const expectedCheckDigit = s5 - s4;
+    
+    const actualCheckDigit = parseInt(wagonNumber[10], 10);
+    return expectedCheckDigit === actualCheckDigit;
   }
 }

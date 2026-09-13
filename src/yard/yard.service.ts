@@ -270,7 +270,7 @@ export class YardService {
         where: { id: asset.id },
         data: {
           current_location: data.shop_id,
-          current_status: 'Allocated'
+          current_status: 'ALLOCATED'
         }
       });
       await this.syncEventService.record(tx, SyncEntity.ASSET, SyncAction.UPDATED, updatedAsset.id, updatedAsset);
@@ -282,7 +282,7 @@ export class YardService {
           from_location: 'YARD',
           to_location: data.shop_id,
           previous_status: asset.current_status,
-          new_status: 'Allocated',
+          new_status: 'ALLOCATED',
           handled_by: userId,
           remarks: `Allocated to ${data.shop_id}`,
           timestamp: new Date()

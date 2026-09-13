@@ -63,6 +63,7 @@ export class AuthService {
       employee_id: user.employee.employee_number,
       roles: user.user_roles.map(ur => ur.role.name),
       assigned_location_id: user.assigned_location_id,
+      jti: require('crypto').randomUUID(),
     };
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: '365d' });

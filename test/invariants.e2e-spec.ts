@@ -5,7 +5,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 import { YardService } from '../src/yard/yard.service';
 import { RepairService } from '../src/repair/repair.service';
 import { ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 describe('10/10 Invariants & Production Hardening', () => {
   let app: INestApplication;
@@ -32,8 +32,14 @@ describe('10/10 Invariants & Production Hardening', () => {
 
   describe('Concurrency & Idempotency', () => {
     const assetNumber = `WAG-${Date.now()}`;
-    const clientId = uuidv4();
-    const userId = uuidv4(); // Mock User ID
+    const clientId = randomUUID();
+    let userId: string;
+
+    beforeAll(async () => {
+      const user = await prisma.user.findFirst();
+      if (!user) throw new Error('No user found in DB for tests');
+      userId = user.id;
+    });
 
     it('should idempotently return success on duplicate exact payload', async () => {
       // First call
@@ -68,56 +74,69 @@ describe('10/10 Invariants & Production Hardening', () => {
     });
 
     it('should lock capacity and reject concurrent overflowing operations', async () => {
-      // We will simulate capacity by changing WRS-1 max capacity to 1 temporarily
+      // We will simulate capacity by changing WRS-1 max capacity to current occupancy + 1 temporarily
+      const currentOccupancy = await prisma.asset.count({
+        where: { current_location: 'WRS-1' }
+      });
       await prisma.location.update({
         where: { location_id: 'WRS-1' },
-        data: { max_capacity: 1 }
+        data: { max_capacity: currentOccupancy + 1 }
       });
 
-      // Asset 1 is already in YARD (from previous test)
-      const asset1 = await prisma.asset.findUnique({ where: { asset_number: assetNumber }});
-      
-      // Intake Asset 2
-      const assetNumber2 = `WAG2-${Date.now()}`;
-      await yardService.intakeAsset(userId, 'YARD', {
-        client_operation_id: uuidv4(),
-        asset_number: assetNumber2,
-        category_id: 'BOXN',
-        from_railway: 'NR'
-      });
-      const asset2 = await prisma.asset.findUnique({ where: { asset_number: assetNumber2 }});
+      try {
+        // Asset 1 is already in YARD (from previous test)
+        const asset1 = await prisma.asset.findUnique({ where: { asset_number: assetNumber }});
+        
+        // Intake Asset 2
+        const assetNumber2 = `WAG2-${Date.now()}`;
+        await yardService.intakeAsset(userId, 'YARD', {
+          client_operation_id: randomUUID(),
+          asset_number: assetNumber2,
+          category_id: 'BOXN',
+          from_railway: 'NR'
+        });
+        const asset2 = await prisma.asset.findUnique({ where: { asset_number: assetNumber2 }});
 
-      // Start repair for Asset 1
-      await repairService.startRepair(userId, 'WRS-1', {
-        client_operation_id: uuidv4(),
-        asset_id: asset1!.id,
-        repair_category_id: 'POH',
-        shop_id: 'WRS-1'
-      });
-
-      // Attempt to start repair for Asset 2 concurrently (Capacity is 1)
-      await expect(
-        repairService.startRepair(userId, 'WRS-1', {
-          client_operation_id: uuidv4(),
-          asset_id: asset2!.id,
+        // Start repair for Asset 1
+        await repairService.startRepair(userId, 'WRS-1', {
+          client_operation_id: randomUUID(),
+          asset_id: asset1!.id,
           repair_category_id: 'POH',
           shop_id: 'WRS-1'
-        })
-      ).rejects.toThrow(ConflictException);
+        });
 
-      // Restore capacity
-      await prisma.location.update({
-        where: { location_id: 'WRS-1' },
-        data: { max_capacity: 50 }
-      });
+        // Attempt to start repair for Asset 2 concurrently (Capacity is 1)
+        await expect(
+          repairService.startRepair(userId, 'WRS-1', {
+            client_operation_id: randomUUID(),
+            asset_id: asset2!.id,
+            repair_category_id: 'POH',
+            shop_id: 'WRS-1'
+          })
+        ).rejects.toThrow(ConflictException);
+      } finally {
+        // Restore capacity
+        await prisma.location.update({
+          where: { location_id: 'WRS-1' },
+          data: { max_capacity: 50 }
+        });
+      }
     });
   });
 
   describe('Workflow & Scope Policy Invariants', () => {
+    let userId: string;
+
+    beforeAll(async () => {
+      const user = await prisma.user.findFirst();
+      if (!user) throw new Error('No user found in DB for tests');
+      userId = user.id;
+    });
+
     it('should throw Forbidden if user operates outside assigned scope', async () => {
       await expect(
-        yardService.dispatchAsset(uuidv4(), 'WRS-1', { // Scope is WRS-1, but operation is YARD
-          client_operation_id: uuidv4(),
+        yardService.dispatchAsset(userId, 'WRS-1', { // Scope is WRS-1, but operation is YARD
+          client_operation_id: randomUUID(),
           asset_number: 'ANY',
           to_railway: 'ER'
         })
@@ -128,24 +147,24 @@ describe('10/10 Invariants & Production Hardening', () => {
       // Asset is currently IN_REPAIR at WRS-1
       // Attempting to dispatch it directly from yard should fail
       const assetNumber = `WAG-${Date.now()}`;
-      await yardService.intakeAsset(uuidv4(), 'YARD', {
-        client_operation_id: uuidv4(),
+      await yardService.intakeAsset(userId, 'YARD', {
+        client_operation_id: randomUUID(),
         asset_number: assetNumber,
         category_id: 'BOXN',
         from_railway: 'NR'
       });
       const asset = await prisma.asset.findUnique({ where: { asset_number: assetNumber }});
       
-      await repairService.startRepair(uuidv4(), 'YARD', {
-        client_operation_id: uuidv4(),
+      await repairService.startRepair(userId, 'YARD', {
+        client_operation_id: randomUUID(),
         asset_id: asset!.id,
         repair_category_id: 'POH',
         shop_id: 'WRS-1'
       });
 
       await expect(
-        yardService.dispatchAsset(uuidv4(), 'YARD', {
-          client_operation_id: uuidv4(),
+        yardService.dispatchAsset(userId, 'YARD', {
+          client_operation_id: randomUUID(),
           asset_number: assetNumber,
           to_railway: 'ER'
         })

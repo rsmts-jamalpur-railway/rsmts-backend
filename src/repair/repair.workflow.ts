@@ -2,8 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 
 export class RepairWorkflow {
   static validateStart(currentStatus: string) {
-    // Usually, assets must be received in yard, or dispatched, or awaiting repair.
-    const allowedStates = ['RECEIVED_IN_YARD', 'AWAITING_REPAIR', 'DISPATCHED'];
+    // Usually, assets must be received in yard, allocated, or dispatched, or awaiting repair.
+    const allowedStates = ['RECEIVED_IN_YARD', 'AWAITING_REPAIR', 'DISPATCHED', 'ALLOCATED'];
     if (!allowedStates.includes(currentStatus)) {
       throw new BadRequestException(`Asset cannot start repair. Current status is ${currentStatus}, expected one of: ${allowedStates.join(', ')}.`);
     }
